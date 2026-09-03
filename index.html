@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ghoomgali Itinerary Maker</title>
+<meta name="theme-color" content="#0C2027">
+<link rel="icon" href="assets/logos/mark-abyss.svg">
+<link rel="stylesheet" href="assets/fonts/brand-fonts.css">
+<link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="doc.css">
+</head>
+<body>
+
+<header class="topbar">
+  <img class="topbar-logo" src="assets/logos/lockup-white.svg" alt="Ghoom Gali">
+  <span class="topbar-divider"></span>
+  <span class="topbar-title">Itinerary Maker</span>
+  <span class="topbar-spacer"></span>
+  <span class="save-state" id="saveState">Saved</span>
+  <button class="btn-ghost" id="btnReset" title="Clear everything and start a new itinerary">New itinerary</button>
+</header>
+
+<main class="split">
+
+  <!-- ─────────────  LEFT: INPUT  ───────────── -->
+  <section class="panel panel-input">
+    <div class="panel-scroll">
+
+      <ol class="steps">
+        <li><span>1</span>Trip details</li>
+        <li><span>2</span>Paste the plan</li>
+        <li><span>3</span>Generate &amp; refine</li>
+      </ol>
+
+      <div class="field-group">
+        <h2 class="group-title">Trip details</h2>
+        <p class="group-hint">These appear on the cover and overview pages. Leave any blank to hide it.</p>
+        <div class="grid-2">
+          <label class="field">
+            <span>Trip title</span>
+            <input type="text" id="f-title" placeholder="Vietnam">
+          </label>
+          <label class="field">
+            <span>Accent word <em>shown in gold</em></span>
+            <input type="text" id="f-titleAccent" placeholder="Escape.">
+          </label>
+          <label class="field field-wide">
+            <span>Subtitle</span>
+            <input type="text" id="f-subtitle" placeholder="Hanoi · Danang · Phu Quoc — an 8-day journey for 5">
+          </label>
+          <label class="field">
+            <span>Travel dates</span>
+            <input type="text" id="f-dates" placeholder="Nov 22–29">
+          </label>
+          <label class="field">
+            <span>Duration</span>
+            <input type="text" id="f-duration" placeholder="8D / 7N">
+          </label>
+          <label class="field">
+            <span>Travelers</span>
+            <input type="text" id="f-party" placeholder="5 Adults">
+          </label>
+          <label class="field">
+            <span>Destinations</span>
+            <input type="text" id="f-destinations" placeholder="3 Cities">
+          </label>
+          <label class="field">
+            <span>Prepared on</span>
+            <input type="text" id="f-preparedOn" placeholder="Nov 2026">
+          </label>
+          <label class="field">
+            <span>Prepared by</span>
+            <input type="text" id="f-preparedBy" placeholder="Ghoom Gali Travel">
+          </label>
+        </div>
+      </div>
+
+      <div class="field-group">
+        <h2 class="group-title">Paste the plan</h2>
+        <p class="group-hint">
+          Paste raw notes exactly as you have them — WhatsApp messages, an email, rough bullets.
+          Start each day with <b>Day 1</b>, <b>Day 2</b> and so on; everything under it becomes that day.
+        </p>
+        <textarea id="raw" spellcheck="false" placeholder="Day 1 — Arrive Delhi
+09:40 Flight 6E-2043 Mumbai to Delhi
+Pickup from T3 and transfer to hotel
+Check in at The Claridges, Lutyens Delhi
+Evening walk through Khan Market
+
+Day 2 — Delhi to Shimla
+Breakfast at hotel
+Drive to Shimla, about 8 hours by road
+Check in at Wildflower Hall
+..."></textarea>
+        <div class="raw-actions">
+          <button class="btn-link" id="btnSample">Load sample text</button>
+          <span class="counter" id="rawCount">0 lines</span>
+        </div>
+
+        <button class="btn-primary" id="btnGenerate">Generate Beautiful Branded Itinerary</button>
+
+        <details class="tips">
+          <summary>How to write the plan</summary>
+          <ul>
+            <li><code>Day 1 | Nov 22 · Hanoi | Hanoi</code> — day number, then the date line, then the title</li>
+            <li><code>[On arrival · coordinated with flight]</code> — square brackets become the small label above a card</li>
+            <li><code>HAN Airport Pick-Up | 2100</code> — a title, then its cost after a pipe</li>
+            <li>The next plain line becomes the description</li>
+            <li><code>- Private transfer vehicle</code> — dashes become the bullet list</li>
+            <li><code>= INR 2,318 × 5 adults</code> — an equals sign makes the small grey cost note</li>
+          </ul>
+          <p><b>Sections:</b> start a line with <code>Hotels</code>, <code>Pricing</code>, <code>Inclusions</code>,
+             <code>Exclusions</code> or <code>Notes</code> and list beneath it.</p>
+          <p><b>Hotels:</b> <code>Hanoi | Sky Lark Hotel | Nov 22 – 24 | 2 nights | 21533</code>, then dashes for room types.</p>
+          <p><b>Pricing:</b> <code>Margin | 45000</code>, <code>GST | 5%</code>, <code>TCS | 2%</code>.
+             Day totals, base cost, subtotal, taxes and the grand total are all worked out for you.</p>
+          <p>Every card gets a photo slot. Click it, or drag an image straight onto it.</p>
+        </details>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ─────────────  RIGHT: PREVIEW  ───────────── -->
+  <section class="panel panel-preview">
+
+    <div class="preview-bar">
+      <div class="preview-bar-left">
+        <strong>Live preview</strong>
+        <span class="preview-hint" id="previewHint">Click any text to edit it</span>
+      </div>
+      <div class="preview-bar-right">
+        <div class="zoom">
+          <button id="zoomOut" title="Zoom out">–</button>
+          <span id="zoomLabel">Fit</span>
+          <button id="zoomIn" title="Zoom in">+</button>
+        </div>
+        <button class="btn-primary btn-sm" id="btnPdf">Download PDF</button>
+        <div class="dropdown">
+          <button class="btn-outline btn-sm" id="btnExport" aria-haspopup="true" aria-expanded="false">Editable&nbsp;▾</button>
+          <div class="dropdown-menu" id="exportMenu" hidden>
+            <button data-export="docx"><b>Word document</b><em>.docx — edit text in Word or Google&nbsp;Docs</em></button>
+            <button data-export="html"><b>Editable web page</b><em>.html — opens in any browser, edit and re-print</em></button>
+            <button data-export="ggi"><b>Project file</b><em>.ggi — reopen here later to duplicate this trip</em></button>
+            <hr>
+            <button data-export="open"><b>Open a project file…</b><em>Load a saved .ggi back into the maker</em></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="paper-scroll" id="paperScroll">
+      <div class="empty-state" id="emptyState">
+        <img src="assets/logos/mark-plane-mint.svg" alt="">
+        <h3>Your itinerary will appear here</h3>
+        <p>Fill in the trip details, paste your day-wise plan on the left, then hit <b>Generate</b>. Every page is styled to the Ghoom Gali guidelines automatically.</p>
+      </div>
+      <div id="doc" class="doc"></div>
+    </div>
+
+  </section>
+</main>
+
+<!-- floating element toolbar -->
+<div class="item-tools" id="itemTools" hidden>
+  <button data-act="photo" title="Add or replace the photo on this card">Photo</button>
+  <button data-act="up" title="Move up">↑</button>
+  <button data-act="down" title="Move down">↓</button>
+  <button data-act="bullet" title="Add a bullet line">+ Bullet</button>
+  <button data-act="delete" class="danger" title="Remove this card">Remove</button>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<div class="overlay" id="overlay" hidden>
+  <div class="overlay-card">
+    <div class="spinner"></div>
+    <h3 id="overlayTitle">Building your PDF</h3>
+    <p id="overlayMsg">Preparing pages…</p>
+  </div>
+</div>
+
+<input type="file" id="filePhoto" accept="image/*" hidden>
+<input type="file" id="fileProject" accept=".ggi,application/json" hidden>
+
+<script src="vendor/html2canvas.min.js"></script>
+<script src="vendor/jspdf.umd.min.js"></script>
+<script src="vendor/jszip.min.js"></script>
+<script src="brand.js"></script>
+<script src="parser.js"></script>
+<script src="render.js"></script>
+<script src="export.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

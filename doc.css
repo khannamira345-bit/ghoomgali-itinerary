@@ -1,0 +1,342 @@
+/* ==========================================================================
+   Ghoom Gali itinerary document - v2
+   A4 pages, 794 x 1123px at 96dpi. Card-based layout, two days to a page,
+   per-entry pricing and a photo slot on every card.
+   Palette section 01, typography section 09 of the brand guidelines.
+   This file is inlined into the .html export, so keep it self-contained.
+   ========================================================================== */
+
+.doc{
+  --abyss:#0C2027; --mint:#41BF8F; --lantern:#E7C547; --chai:#C4855A;
+  --paper:#EEE9E3; --canopy:#1C3A32; --light-mint:#EFFAF4;
+  --d:'Newsreader',Georgia,'Times New Roman',serif;
+  --t:'Hanken Grotesk','Helvetica Neue',Helvetica,Arial,sans-serif;
+  --m:'Space Mono','Courier New',monospace;
+  --pad:58px;
+  --line:rgba(12,32,39,.10);
+  --muted:rgba(12,32,39,.58);
+}
+
+/* Page shell ---------------------------------------------------------- */
+.page{
+  width:794px; height:1123px; flex:none; position:relative; overflow:hidden;
+  background:var(--paper); color:var(--abyss);
+  font-family:var(--t); font-size:13px; line-height:1.55;
+  box-shadow:0 6px 26px rgba(12,32,39,.14);
+}
+.page *{box-sizing:border-box}
+.page--dark{background:var(--abyss); color:var(--paper)}
+
+.page-head{
+  position:absolute; top:40px; left:var(--pad); right:var(--pad); z-index:3;
+  display:flex; align-items:flex-start; justify-content:space-between;
+  padding-bottom:14px; border-bottom:1px solid var(--line);
+}
+.page--dark .page-head{border-bottom-color:rgba(238,233,227,.16)}
+.page-head img{width:22px; height:22px; display:block}
+.page-head-brand{
+  font-family:var(--m); font-size:9px; letter-spacing:.2em; text-transform:uppercase;
+  color:rgba(12,32,39,.45);
+}
+.page--dark .page-head-brand{color:rgba(238,233,227,.7)}
+.page-head-label{
+  font-family:var(--m); font-size:9px; letter-spacing:.2em; text-transform:uppercase;
+  text-align:right; line-height:1.75;
+}
+.page-head-label .l1{color:var(--chai); display:block}
+.page-head-label .l2{color:rgba(12,32,39,.5); display:block}
+.page--dark .page-head-label .l1{color:var(--mint)}
+.page--dark .page-head-label .l2{color:rgba(238,233,227,.6)}
+
+.page-foot{
+  position:absolute; bottom:34px; left:var(--pad); right:var(--pad); z-index:3;
+  display:flex; align-items:center; justify-content:space-between;
+  padding-top:14px; border-top:1px solid var(--line);
+  font-family:var(--m); font-size:9px; letter-spacing:.16em; text-transform:uppercase;
+  color:rgba(12,32,39,.36);
+}
+.page--dark .page-foot{border-top-color:rgba(238,233,227,.14); color:rgba(238,233,227,.42)}
+.page-foot .mid{color:rgba(12,32,39,.3)}
+.page--dark .page-foot .mid{color:rgba(238,233,227,.36)}
+
+.page-body{
+  position:absolute; top:104px; bottom:82px; left:var(--pad); right:var(--pad); z-index:2;
+}
+
+/* ── Cover ─────────────────────────────────────────────────────────── */
+.cover-photo{
+  position:absolute; inset:0; z-index:0;
+  background-position:center; background-size:cover; background-repeat:no-repeat;
+}
+.cover-veil{position:absolute; inset:0; z-index:1; background:rgba(12,32,39,.72)}
+.cover-arc{
+  position:absolute; z-index:1; border-radius:50%;
+  border:1px solid rgba(65,191,143,.22); pointer-events:none;
+}
+.cover-arc.a1{width:760px; height:760px; right:-250px; bottom:-330px}
+.cover-arc.a2{width:1100px; height:1100px; left:-430px; bottom:-560px; border-color:rgba(65,191,143,.12)}
+
+.cover-inner{
+  position:absolute; z-index:2; left:var(--pad); right:var(--pad);
+  top:190px; text-align:center;
+}
+.cover-logo{width:104px; height:auto; display:block; margin:0 auto 62px}
+.cover-title{
+  font-family:var(--d); font-weight:300; font-size:60px; line-height:1.04;
+  letter-spacing:-.02em; color:var(--paper); margin:0;
+}
+.cover-title em{font-style:italic; color:var(--lantern)}
+.cover-sub{
+  font-size:14.5px; color:rgba(238,233,227,.68); margin:22px 0 0; line-height:1.5;
+}
+.cover-stats{
+  display:flex; justify-content:center; gap:52px; margin-top:56px; flex-wrap:wrap;
+}
+.cover-stats div{text-align:center; min-width:78px}
+.cover-stats .v{
+  font-family:var(--d); font-weight:400; font-size:25px; color:var(--mint); line-height:1.15;
+}
+.cover-stats .k{
+  font-family:var(--m); font-size:8px; letter-spacing:.22em; text-transform:uppercase;
+  color:rgba(238,233,227,.5); margin-top:8px;
+}
+
+/* ── Section headings ──────────────────────────────────────────────── */
+.sec-title{
+  font-family:var(--d); font-weight:400; font-size:34px; line-height:1.12;
+  letter-spacing:-.015em; margin:0 0 12px;
+}
+.sec-lede{font-size:13px; color:var(--muted); max-width:62ch; margin:0 0 26px; line-height:1.6}
+.sub-title{
+  font-family:var(--d); font-weight:400; font-size:21px; margin:0 0 14px; letter-spacing:-.01em;
+}
+
+/* ── Stat cards ────────────────────────────────────────────────────── */
+.stats{display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:22px}
+.stat{
+  background:#fff; border:1px solid var(--line); border-radius:10px; padding:15px 16px;
+}
+.stat .v{font-family:var(--d); font-size:21px; font-weight:400; line-height:1.2}
+.stat .k{
+  font-family:var(--m); font-size:8px; letter-spacing:.18em; text-transform:uppercase;
+  color:var(--chai); margin-top:7px;
+}
+
+/* ── Route strip ───────────────────────────────────────────────────── */
+.route{
+  background:var(--canopy); border-radius:10px; padding:17px 24px; margin-bottom:30px;
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+}
+.route .leg{text-align:center; flex:1}
+.route .city{font-family:var(--d); font-size:17px; color:var(--paper); line-height:1.2}
+.route .when{
+  font-family:var(--m); font-size:9px; letter-spacing:.1em; color:var(--mint); margin-top:5px;
+}
+.route .arrow{color:var(--lantern); font-size:17px; flex:none; line-height:1}
+
+/* ── Cards (hotels and activities share the frame) ─────────────────── */
+/* Two columns while editing so the photo slot sits where the photo will go.
+   Export collapses any card that never got one. */
+.card{
+  position:relative; background:#fff; border:1px solid var(--line); border-radius:10px;
+  border-left:3px solid var(--mint); margin-bottom:13px; overflow:hidden;
+  display:grid; grid-template-columns:1fr 176px; min-height:104px;
+}
+.card--chai{border-left-color:var(--chai)}
+.card--lantern{border-left-color:var(--lantern)}
+.card--mint{border-left-color:var(--mint)}
+.card-body{padding:16px 20px 15px}
+.card-eyebrow{
+  font-family:var(--m); font-size:8.5px; letter-spacing:.16em; text-transform:uppercase;
+  color:var(--chai); margin-bottom:7px; padding-right:96px;
+}
+.card-title{
+  font-family:var(--d); font-weight:400; font-size:19.5px; line-height:1.24;
+  margin:0; letter-spacing:-.008em; padding-right:96px;
+}
+.card-meta{font-size:11.5px; color:var(--muted); margin:6px 0 0}
+.card-detail{font-size:12.5px; line-height:1.55; color:rgba(12,32,39,.72); margin:8px 0 0}
+.card-price{
+  position:absolute; top:15px; right:15px; z-index:2;
+  font-family:var(--m); font-size:11px; font-weight:700; letter-spacing:.04em;
+  background:var(--light-mint); color:var(--abyss);
+  border:1px solid rgba(65,191,143,.3); border-radius:7px; padding:5px 10px;
+}
+.card .card-price{right:191px}
+/* No min-height: an empty photo column must add exactly nothing to the card,
+   so the page breaks the preview shows are the ones the PDF gets. */
+.card-photo{
+  background-position:center; background-size:cover; background-repeat:no-repeat;
+  background-color:var(--light-mint); min-height:0;
+  border-left:1px solid var(--line);
+}
+
+.bullets{list-style:none; margin:9px 0 0; padding:0}
+.bullets li{
+  position:relative; padding:0 0 4px 13px; font-size:12px; line-height:1.5;
+  color:rgba(12,32,39,.78);
+}
+.bullets li::before{
+  content:""; position:absolute; left:0; top:7px;
+  width:4px; height:4px; background:var(--chai); border-radius:1px;
+}
+.card-note{
+  font-family:var(--m); font-size:9px; letter-spacing:.03em; color:rgba(12,32,39,.42);
+  margin:10px 0 0;
+}
+.badge{
+  display:inline-block; font-family:var(--m); font-size:8.5px; letter-spacing:.1em;
+  background:var(--light-mint); color:var(--canopy); border:1px solid rgba(65,191,143,.3);
+  border-radius:6px; padding:4px 9px; margin-top:11px;
+}
+
+/* ── Day header ────────────────────────────────────────────────────── */
+.day-head{position:relative; display:flex; align-items:flex-start; gap:16px; margin:22px 0 14px}
+.day-head:first-child{margin-top:0}
+/* Absolutely positioned so offering a day banner costs the layout nothing. */
+.day-photo-btn{
+  position:absolute; right:0; top:6px; cursor:pointer;
+  font-family:var(--m); font-size:8px; letter-spacing:.13em; text-transform:uppercase;
+  color:rgba(12,32,39,.38); border:1px dashed rgba(12,32,39,.24);
+  border-radius:6px; padding:5px 9px; background:rgba(12,32,39,.015);
+}
+.day-photo-btn:hover{border-color:var(--mint); color:var(--canopy); background:var(--light-mint)}
+.doc.exporting .day-photo-btn{display:none}
+.day-n{
+  font-family:var(--m); font-size:29px; font-weight:700; line-height:1;
+  color:var(--mint); flex:none; letter-spacing:-.02em; padding-top:5px;
+}
+.day-n--chai{color:var(--chai)}
+.day-n--lantern{color:var(--lantern)}
+.day-when{
+  font-family:var(--m); font-size:8.5px; letter-spacing:.18em; text-transform:uppercase;
+  color:rgba(12,32,39,.48); margin-bottom:3px;
+}
+.day-title{
+  font-family:var(--d); font-weight:400; font-size:26px; line-height:1.15;
+  letter-spacing:-.014em; margin:0;
+}
+.day-banner{
+  height:132px; border-radius:10px; margin-bottom:13px;
+  background-position:center; background-size:cover; background-repeat:no-repeat;
+  background-color:var(--light-mint); border:1px solid var(--line);
+}
+.day-total{
+  background:var(--abyss); border-radius:10px; padding:14px 20px; margin:0 0 22px;
+  display:flex; align-items:center; justify-content:space-between;
+}
+.day-total .k{
+  font-family:var(--m); font-size:10.5px; letter-spacing:.16em; text-transform:uppercase;
+  color:rgba(238,233,227,.82);
+}
+.day-total .v{
+  font-family:var(--m); font-size:13.5px; font-weight:700; letter-spacing:.04em; color:var(--mint);
+}
+
+/* ── Pricing table ─────────────────────────────────────────────────── */
+.price-row{
+  display:flex; align-items:center; justify-content:space-between; gap:20px;
+  padding:13px 14px; border-bottom:1px solid var(--line);
+}
+.price-row .k{font-size:12.5px}
+.price-row .v{font-family:var(--m); font-size:11.5px; letter-spacing:.03em}
+.price-row--hi{background:var(--light-mint); border-radius:7px; border-bottom-color:transparent}
+.price-row--hi .k{font-weight:700}
+.price-row--hi .v{font-weight:700}
+
+.grand{
+  background:var(--abyss); border-radius:12px; padding:23px 26px; margin-top:20px;
+}
+.grand .k{
+  font-family:var(--m); font-size:9.5px; letter-spacing:.2em; text-transform:uppercase;
+  color:var(--mint); margin-bottom:9px;
+}
+.grand .v{
+  font-family:var(--d); font-weight:400; font-size:35px; color:var(--paper); line-height:1.1;
+}
+.per-person{
+  display:flex; align-items:baseline; justify-content:flex-end; gap:12px; margin-top:14px;
+}
+.per-person .k{font-family:var(--m); font-size:9.5px; color:rgba(12,32,39,.45)}
+.per-person .v{font-family:var(--d); font-size:22px; color:var(--chai)}
+
+.closing-note{
+  margin-top:30px; padding-top:24px; border-top:1px solid var(--line);
+  font-family:var(--d); font-style:italic; font-weight:300; font-size:15.5px;
+  line-height:1.5; color:rgba(12,32,39,.72); max-width:58ch;
+}
+
+/* ── Inclusions (optional page) ────────────────────────────────────── */
+.cols{display:grid; grid-template-columns:1fr 1fr; gap:36px}
+.col-title{
+  font-family:var(--m); font-size:9px; letter-spacing:.2em; text-transform:uppercase;
+  padding-bottom:9px; margin-bottom:13px; border-bottom:1px solid var(--line);
+}
+.col-title.in{color:var(--canopy)}
+.col-title.ex{color:var(--chai)}
+.tick{list-style:none; margin:0; padding:0}
+.tick li{position:relative; padding:0 0 9px 20px; font-size:12.5px; line-height:1.5}
+.tick li::before{position:absolute; left:0; top:0; font-family:var(--m); font-size:12px}
+.tick.in li::before{content:"+"; color:var(--mint)}
+.tick.ex li::before{content:"-"; color:var(--chai)}
+
+.notes-block{
+  margin-top:26px; padding:17px 20px; border-radius:10px;
+  background:#fff; border-left:3px solid var(--lantern); border-top:1px solid var(--line);
+  border-right:1px solid var(--line); border-bottom:1px solid var(--line);
+}
+.notes-block h4{
+  font-family:var(--m); font-size:9px; letter-spacing:.2em; text-transform:uppercase;
+  color:var(--chai); margin:0 0 8px; font-weight:400;
+}
+.notes-block p{margin:0; font-size:12.5px; line-height:1.6; color:var(--muted)}
+
+/* ── Editing affordances (screen only) ─────────────────────────────── */
+.doc [contenteditable]{outline:none; border-radius:3px}
+.doc:not(.exporting) [contenteditable]:hover{box-shadow:0 0 0 2px rgba(65,191,143,.28)}
+.doc:not(.exporting) [contenteditable]:focus{box-shadow:0 0 0 2px var(--mint); background:rgba(65,191,143,.06)}
+.doc:not(.exporting) [contenteditable]:empty::before{
+  content:attr(data-placeholder); color:rgba(12,32,39,.3); font-style:italic;
+}
+.doc:not(.exporting) .page--dark [contenteditable]:empty::before{color:rgba(238,233,227,.35)}
+.doc:not(.exporting) .card:hover{border-color:rgba(65,191,143,.5)}
+
+.photo-slot{
+  display:grid; place-items:center; cursor:pointer; text-align:center; padding:8px;
+  border:1px dashed rgba(12,32,39,.24); background:rgba(12,32,39,.015);
+  font-family:var(--m); font-size:8px; letter-spacing:.13em; text-transform:uppercase;
+  color:rgba(12,32,39,.38); height:100%; min-height:inherit; border-radius:inherit;
+}
+.photo-slot:hover{border-color:var(--mint); color:var(--canopy); background:var(--light-mint)}
+.page--dark .photo-slot{
+  border-color:rgba(238,233,227,.24); color:rgba(238,233,227,.42); background:rgba(238,233,227,.03);
+}
+
+/* Anything that exists only to be clicked leaves the export. */
+.doc.exporting .photo-slot{display:none}
+.doc.exporting .card:not(.has-photo) .card-photo{display:none}
+.doc.exporting .card:not(.has-photo){grid-template-columns:1fr}
+.doc.exporting .card:not(.has-photo) .card-price{right:15px}
+.doc.exporting .day-banner:not(.has-photo){display:none}
+.doc.exporting .cover-photo:not(.has-photo),
+.doc.exporting .cover-photo:not(.has-photo) + .cover-veil{display:none}
+.doc.exporting .day-summary:empty,
+.doc.exporting .card-detail:empty,
+.doc.exporting .card-meta:empty,
+.doc.exporting .card-eyebrow:empty,
+.doc.exporting .card-note:empty,
+.doc.exporting .cover-sub:empty,
+.doc.exporting .sec-lede:empty,
+.doc.exporting .closing-note:empty,
+.doc.exporting .tick li:empty{display:none}
+
+/* ── Print ─────────────────────────────────────────────────────────── */
+@media print{
+  body{background:#fff; overflow:visible}
+  .topbar,.panel-input,.preview-bar,.item-tools,.toast,.overlay,.empty-state{display:none !important}
+  .split{display:block; height:auto}
+  .paper-scroll{padding:0; background:#fff; overflow:visible; display:block}
+  .doc{gap:0; transform:none !important}
+  .page{box-shadow:none; page-break-after:always; break-after:page; margin:0}
+  .photo-slot{display:none}
+}
