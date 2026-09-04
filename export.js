@@ -30,6 +30,8 @@
   }
 
   function fileName(model, ext) {
+    var custom = (model.meta.fileName || '').trim();
+    if (custom) return slug(custom) + '.' + ext;
     return 'ghoom-gali-' + slug(model.meta.title) + '.' + ext;
   }
 
@@ -290,6 +292,7 @@ css + '\n</style>\n</head>\n<body>\n' +
     var m = model.meta;
     var body = [];
     var i, j;
+    var accentHex = C[m.theme] || C.mint;
 
     function inr(n) { return n == null || !isFinite(n) ? '' : P.money(n, 'INR'); }
 
@@ -312,9 +315,10 @@ css + '\n</style>\n</head>\n<body>\n' +
     if (m.subtitle) {
       body.push(para(run(m.subtitle, { size: 11.5, color: '4A585D' }), { after: 240 }));
     }
-    [['Travel dates', m.dates], ['Duration', m.duration],
-     ['Travelers', m.party], ['Destinations', m.destinations]
-    ].forEach(function (row) {
+    var coverRows = [['Travel dates', m.dates], ['Duration', m.duration],
+      ['Travelers', m.party], ['Destinations', m.destinations]];
+    if (m.children) coverRows.splice(3, 0, ['Children', m.children]);
+    coverRows.forEach(function (row) {
       if (!row[1]) return;
       body.push(para([
         run(row[0].toUpperCase() + '   ', { font: F.mono, size: 8, color: C.chai, spacing: 40 }),
@@ -357,7 +361,7 @@ css + '\n</style>\n</head>\n<body>\n' +
       body.push(pageBreak());
 
       body.push(para(run('DAY ' + (d.n < 10 ? '0' : '') + d.n + (d.when ? '   ·   ' + d.when.toUpperCase() : ''),
-        { font: F.mono, size: 9, color: C.mint, spacing: 60 }), { after: 60 }));
+        { font: F.mono, size: 9, color: accentHex, spacing: 60 }), { after: 60 }));
       body.push(para(run(d.title || '', { font: F.display, size: 21, color: C.abyss }),
         { after: 200, border: C.mint }));
       await picture(d.image, 16);
@@ -445,14 +449,20 @@ css + '\n</style>\n</head>\n<body>\n' +
       p.extras.forEach(function (e) { line(e.label, e.amount); });
       line('Margin', p.margin);
       line('Subtotal', p.subtotal, true);
-      if (p.gst) line('GST (' + p.gstPct + '%)', p.gst);
-      if (p.tcs) line('TCS (' + p.tcsPct + '%)', p.tcs);
 
-      body.push(para(run('GRAND TOTAL' + (m.party ? '  ·  FOR ' + m.party.toUpperCase() : ''),
+      if (p.gst || p.tcs) {
+        body.push(para(run('TAXES & CHARGES', { font: F.mono, size: 8.5, color: C.chai, spacing: 50 }),
+          { before: 180, after: 70 }));
+        if (p.gst) line('GST (' + p.gstPct + '%)', p.gst);
+        if (p.tcs) line('TCS (' + p.tcsPct + '%)', p.tcs);
+      }
+
+      var partyLabelTxt = [m.party, m.children].filter(Boolean).join(' · ');
+      body.push(para(run('GRAND TOTAL' + (partyLabelTxt ? '  ·  FOR ' + partyLabelTxt.toUpperCase() : ''),
         { font: F.mono, size: 9, color: C.canopy, spacing: 60 }), { before: 260, after: 70 }));
       body.push(para(run(inr(p.grandTotal), { font: F.display, size: 26, color: C.abyss }), { after: 120 }));
       if (p.perPerson) {
-        body.push(para(run('Cost per person   ' + inr(p.perPerson),
+        body.push(para(run('Cost per person (÷ ' + p.heads + ')   ' + inr(p.perPerson),
           { font: F.mono, size: 10, color: C.chai }), { after: 200 }));
       }
     }

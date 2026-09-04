@@ -62,6 +62,10 @@
             <input type="text" id="f-party" placeholder="5 Adults">
           </label>
           <label class="field">
+            <span>Children <em>optional</em></span>
+            <input type="text" id="f-children" placeholder="2 Children">
+          </label>
+          <label class="field">
             <span>Destinations</span>
             <input type="text" id="f-destinations" placeholder="3 Cities">
           </label>
@@ -73,7 +77,23 @@
             <span>Prepared by</span>
             <input type="text" id="f-preparedBy" placeholder="Ghoom Gali Travel">
           </label>
+          <label class="field field-wide">
+            <span>PDF / file name <em>optional</em></span>
+            <input type="text" id="f-fileName" placeholder="Leave blank to name it from the trip title">
+          </label>
         </div>
+
+        <div class="theme-picker">
+          <span class="theme-label">Colour accent</span>
+          <div class="swatches" id="themeSwatches">
+            <button type="button" class="swatch swatch--auto active" data-theme="">Auto</button>
+            <button type="button" class="swatch swatch--mint" data-theme="mint" title="Mint"></button>
+            <button type="button" class="swatch swatch--chai" data-theme="chai" title="Chai"></button>
+            <button type="button" class="swatch swatch--lantern" data-theme="lantern" title="Lantern"></button>
+          </div>
+        </div>
+        <p class="group-hint theme-hint">Auto gives each trip its own accent from the brand palette. Pick one to lock it.</p>
+        <input type="hidden" id="f-theme" value="">
       </div>
 
       <div class="field-group">
@@ -114,7 +134,10 @@ Check in at Wildflower Hall
              <code>Exclusions</code> or <code>Notes</code> and list beneath it.</p>
           <p><b>Hotels:</b> <code>Hanoi | Sky Lark Hotel | Nov 22 – 24 | 2 nights | 21533</code>, then dashes for room types.</p>
           <p><b>Pricing:</b> <code>Margin | 45000</code>, <code>GST | 5%</code>, <code>TCS | 2%</code>.
-             Day totals, base cost, subtotal, taxes and the grand total are all worked out for you.</p>
+             Day totals, base cost, subtotal, GST/TCS and the grand total are all worked out for you,
+             with tax shown as its own section.</p>
+          <p><b>Children:</b> mention <code>2 children</code> or <code>2 kids</code> anywhere in the
+             opening lines and it appears as its own stat, and counts toward cost per person.</p>
           <p>Every card gets a photo slot. Click it, or drag an image straight onto it.</p>
         </details>
       </div>

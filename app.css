@@ -133,6 +133,30 @@ button{font-family:inherit; cursor:pointer}
 }
 .btn-outline:hover{border-color:var(--mint); color:var(--canopy)}
 
+/* Theme picker ---------------------------------------------------------- */
+.theme-picker{display:flex; align-items:center; gap:10px; margin-top:14px}
+.theme-label{
+  font-family:var(--mono); font-size:9.5px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--muted);
+}
+.swatches{display:flex; align-items:center; gap:7px}
+.swatch{
+  width:24px; height:24px; border-radius:50%; border:2px solid transparent;
+  cursor:pointer; padding:0; transition:.15s; flex:none;
+}
+.swatch--auto{
+  width:auto; height:24px; border-radius:999px; padding:0 11px; border:1px solid var(--line);
+  background:#fff; font-family:var(--mono); font-size:9px; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--muted);
+}
+.swatch--mint{background:var(--mint)}
+.swatch--chai{background:var(--chai)}
+.swatch--lantern{background:var(--lantern)}
+.swatch.active{border-color:var(--abyss)}
+.swatch--auto.active{border-color:var(--abyss); color:var(--abyss); font-weight:600}
+.swatch:hover{transform:scale(1.1)}
+.theme-hint{margin-top:8px}
+
 /* Tips ---------------------------------------------------------------- */
 .tips{margin-top:18px; border-top:1px solid var(--line); padding-top:14px}
 .tips summary{

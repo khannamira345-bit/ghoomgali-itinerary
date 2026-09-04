@@ -15,7 +15,7 @@
   var fileProject = $('fileProject');
 
   var FIELDS = ['title', 'titleAccent', 'subtitle', 'dates', 'duration',
-                'party', 'destinations', 'preparedOn', 'preparedBy'];
+                'party', 'children', 'destinations', 'preparedOn', 'preparedBy', 'fileName'];
 
   var ZOOMS = ['fit', 0.5, 0.75, 1, 1.25, 1.5];
 
@@ -69,7 +69,8 @@
     saveTimer = setTimeout(function () {
       try {
         localStorage.setItem(STORE, JSON.stringify({
-          model: state.model, raw: $('raw').value, fields: readFields()
+          model: state.model, raw: $('raw').value, fields: readFields(),
+          themeChoice: $('f-theme').value
         }));
         var s = $('saveState');
         s.classList.add('on');
@@ -96,6 +97,8 @@
     if (data.fields) FIELDS.forEach(function (k) {
       if (data.fields[k]) $('f-' + k).value = data.fields[k];
     });
+    $('f-theme').value = data.themeChoice || '';
+    syncThemeSwatchUI();
     if (data.model && data.model.days) {
       state.model = data.model;
       rerender();
@@ -117,6 +120,10 @@
     var model = window.GGParser.parse(raw);
     var fields = readFields();
     FIELDS.forEach(function (k) { if (fields[k]) model.meta[k] = fields[k]; });
+
+    var themeChoice = $('f-theme').value;
+    if (themeChoice) model.meta.theme = themeChoice;
+
     window.GGParser.recompute(model);
 
     if (state.model) carryPhotos(state.model, model);
@@ -413,6 +420,30 @@
     }
   });
 
+  /* ---- theme picker ------------------------------------------------------ */
+
+  function syncThemeSwatchUI() {
+    var current = $('f-theme').value;
+    Array.prototype.slice.call(document.querySelectorAll('#themeSwatches .swatch')).forEach(function (b) {
+      b.classList.toggle('active', b.dataset.theme === current);
+    });
+  }
+
+  var themeSwatches = $('themeSwatches');
+  if (themeSwatches) {
+    themeSwatches.addEventListener('click', function (e) {
+      var btn = e.target.closest('.swatch');
+      if (!btn) return;
+      $('f-theme').value = btn.dataset.theme;
+      syncThemeSwatchUI();
+      if (state.model) {
+        state.model.meta.theme = btn.dataset.theme || window.GGParser.autoTheme(state.model.meta);
+        rerender();
+      }
+      save();
+    });
+  }
+
   /* ---- form and misc ---------------------------------------------------- */
 
   FIELDS.forEach(function (k) {
@@ -449,6 +480,8 @@
     state.model = null;
     $('raw').value = '';
     FIELDS.forEach(function (k) { $('f-' + k).value = ''; });
+    $('f-theme').value = '';
+    syncThemeSwatchUI();
     docEl.textContent = '';
     emptyState.hidden = false;
     $('rawCount').textContent = '0 lines';
@@ -475,7 +508,7 @@
   var SAMPLE = [
     'Vietnam *Escape.*',
     'Hanoi · Danang · Phu Quoc — an 8-day journey for 5',
-    'Nov 22–29 | 8D / 7N | 5 adults | 3 cities',
+    'Nov 22–29 | 8D / 7N | 5 adults | 2 children | 3 cities',
     '',
     'Hotels',
     'Hanoi | Sky Lark Hotel, Hanoi | Nov 22 – 24 | 2 nights | 21533',
@@ -609,7 +642,7 @@
   }
 
   preloadLogos().then(function () {
-    if (!restore()) emptyState.hidden = false;
+    if (!restore()) { emptyState.hidden = false; syncThemeSwatchUI(); }
     $('raw').dispatchEvent(new Event('input'));
   });
 })();

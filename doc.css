@@ -9,6 +9,9 @@
 .doc{
   --abyss:#0C2027; --mint:#41BF8F; --lantern:#E7C547; --chai:#C4855A;
   --paper:#EEE9E3; --canopy:#1C3A32; --light-mint:#EFFAF4;
+  /* The itinerary's own lead accent - set inline per document by render.js,
+     this is only the fallback for a page that hasn't been through it yet. */
+  --accent:var(--mint);
   --d:'Newsreader',Georgia,'Times New Roman',serif;
   --t:'Hanken Grotesk','Helvetica Neue',Helvetica,Arial,sans-serif;
   --m:'Space Mono','Courier New',monospace;
@@ -94,7 +97,7 @@
 }
 .cover-stats div{text-align:center; min-width:78px}
 .cover-stats .v{
-  font-family:var(--d); font-weight:400; font-size:25px; color:var(--mint); line-height:1.15;
+  font-family:var(--d); font-weight:400; font-size:25px; color:var(--accent); line-height:1.15;
 }
 .cover-stats .k{
   font-family:var(--m); font-size:8px; letter-spacing:.22em; text-transform:uppercase;
@@ -112,7 +115,7 @@
 }
 
 /* ── Stat cards ────────────────────────────────────────────────────── */
-.stats{display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:22px}
+.stats{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:22px}
 .stat{
   background:#fff; border:1px solid var(--line); border-radius:10px; padding:15px 16px;
 }
@@ -130,7 +133,7 @@
 .route .leg{text-align:center; flex:1}
 .route .city{font-family:var(--d); font-size:17px; color:var(--paper); line-height:1.2}
 .route .when{
-  font-family:var(--m); font-size:9px; letter-spacing:.1em; color:var(--mint); margin-top:5px;
+  font-family:var(--m); font-size:9px; letter-spacing:.1em; color:var(--accent); margin-top:5px;
 }
 .route .arrow{color:var(--lantern); font-size:17px; flex:none; line-height:1}
 
@@ -163,6 +166,8 @@
   border:1px solid rgba(65,191,143,.3); border-radius:7px; padding:5px 10px;
 }
 .card .card-price{right:191px}
+.card--chai .card-price{border-color:rgba(196,133,90,.35)}
+.card--lantern .card-price{border-color:rgba(231,197,71,.42)}
 /* No min-height: an empty photo column must add exactly nothing to the card,
    so the page breaks the preview shows are the ones the PDF gets. */
 .card-photo{
@@ -186,7 +191,7 @@
 }
 .badge{
   display:inline-block; font-family:var(--m); font-size:8.5px; letter-spacing:.1em;
-  background:var(--light-mint); color:var(--canopy); border:1px solid rgba(65,191,143,.3);
+  background:var(--light-mint); color:var(--canopy); border:1px solid var(--accent);
   border-radius:6px; padding:4px 9px; margin-top:11px;
 }
 
@@ -230,8 +235,11 @@
   color:rgba(238,233,227,.82);
 }
 .day-total .v{
-  font-family:var(--m); font-size:13.5px; font-weight:700; letter-spacing:.04em; color:var(--mint);
+  font-family:var(--m); font-size:13.5px; font-weight:700; letter-spacing:.04em; color:var(--accent);
 }
+.day-total--mint .v{color:var(--mint)}
+.day-total--chai .v{color:var(--chai)}
+.day-total--lantern .v{color:var(--lantern)}
 
 /* ── Pricing table ─────────────────────────────────────────────────── */
 .price-row{
@@ -244,12 +252,21 @@
 .price-row--hi .k{font-weight:700}
 .price-row--hi .v{font-weight:700}
 
+/* GST/TCS get their own visually separated, boxed section rather than
+   blending into the cost-breakdown rows above them. */
+.tax-rows{
+  background:var(--light-mint); border:1px solid rgba(65,191,143,.25);
+  border-radius:10px; padding:2px 14px; margin-bottom:18px;
+}
+.tax-rows .price-row{border-bottom-color:rgba(12,32,39,.08)}
+.tax-rows .price-row:last-child{border-bottom:none}
+
 .grand{
   background:var(--abyss); border-radius:12px; padding:23px 26px; margin-top:20px;
 }
 .grand .k{
   font-family:var(--m); font-size:9.5px; letter-spacing:.2em; text-transform:uppercase;
-  color:var(--mint); margin-bottom:9px;
+  color:var(--accent); margin-bottom:9px;
 }
 .grand .v{
   font-family:var(--d); font-weight:400; font-size:35px; color:var(--paper); line-height:1.1;
@@ -268,6 +285,7 @@
 
 /* ── Inclusions (optional page) ────────────────────────────────────── */
 .cols{display:grid; grid-template-columns:1fr 1fr; gap:36px}
+.cols--single{grid-template-columns:1fr}
 .col-title{
   font-family:var(--m); font-size:9px; letter-spacing:.2em; text-transform:uppercase;
   padding-bottom:9px; margin-bottom:13px; border-bottom:1px solid var(--line);

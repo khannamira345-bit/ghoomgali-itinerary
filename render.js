@@ -10,6 +10,15 @@
   var PAGE_BODY_H = 937;          // 1123 - 104 top - 82 bottom
   var L = window.GG.logos;
   var P = window.GGParser;
+  var TONES = P.THEME_TONES || ['mint', 'chai', 'lantern'];
+
+  /* Rotate the tone list so it starts at the itinerary's own lead accent -
+     day 1 (and hotel 1) picks up the theme colour, later ones still cycle. */
+  function tonesFrom(theme) {
+    var i = TONES.indexOf(theme);
+    if (i < 0) i = 0;
+    return TONES.slice(i).concat(TONES.slice(0, i));
+  }
 
   /* ---- DOM helpers ------------------------------------------------------ */
 
@@ -125,11 +134,14 @@
     inner.appendChild(edit('p', 'cover-sub', m.subtitle, 'meta.subtitle', 'A one-line description of the trip'));
 
     var stats = el('div', 'cover-stats');
-    [['meta.dates', m.dates, 'Travel dates'],
-     ['meta.duration', m.duration, 'Duration'],
-     ['meta.party', m.party, 'Travelers'],
-     ['meta.destinations', m.destinations, 'Destinations']
-    ].forEach(function (row) {
+    var coverRows = [
+      ['meta.dates', m.dates, 'Travel dates'],
+      ['meta.duration', m.duration, 'Duration'],
+      ['meta.party', m.party, 'Travelers'],
+      ['meta.destinations', m.destinations, 'Destinations']
+    ];
+    if (m.children) coverRows.splice(3, 0, ['meta.children', m.children, 'Children']);
+    coverRows.forEach(function (row) {
       var d = el('div');
       d.appendChild(edit('div', 'v', row[1], row[0], '—'));
       d.appendChild(el('div', 'k', row[2]));
@@ -153,11 +165,14 @@
       'meta.overviewLede', 'A short summary of the package — dates, party size and where they stay.'));
 
     var stats = el('div', 'stats');
-    [['meta.duration', m.duration, 'Duration'],
-     ['meta.party', m.party, 'Travelers'],
-     ['meta.destinations', m.destinations, 'Destinations'],
-     ['meta.total', m.total, 'Grand total']
-    ].forEach(function (row) {
+    var overviewRows = [
+      ['meta.duration', m.duration, 'Duration'],
+      ['meta.party', m.party, 'Travelers'],
+      ['meta.destinations', m.destinations, 'Destinations'],
+      ['meta.total', m.total, 'Grand total']
+    ];
+    if (m.children) overviewRows.splice(2, 0, ['meta.children', m.children, 'Children']);
+    overviewRows.forEach(function (row) {
       var s = el('div', 'stat');
       s.appendChild(edit('div', 'v', row[1], row[0], '—'));
       s.appendChild(el('div', 'k', row[2]));
@@ -170,8 +185,9 @@
 
     if (model.hotels.length) {
       blocks.push({ node: el('h3', 'sub-title', 'Accommodation') });
+      var hotelTones = tonesFrom(model.meta.theme);
       model.hotels.forEach(function (h, i) {
-        blocks.push({ node: hotelCard(h, i) });
+        blocks.push({ node: hotelCard(h, i, hotelTones) });
       });
     }
     return blocks;
@@ -189,9 +205,9 @@
     return strip;
   }
 
-  function hotelCard(h, i) {
+  function hotelCard(h, i, tones) {
     var base = 'hotels.' + i;
-    var tone = ['card--mint', 'card--chai', 'card--lantern'][i % 3];
+    var tone = 'card--' + (tones || TONES)[i % (tones || TONES).length];
     var card = el('div', 'card ' + tone + (h.image ? ' has-photo' : ''));
     card.dataset.card = base;
 
@@ -217,8 +233,8 @@
 
   /* Colour follows the place, the way the reference deck does: a new
      destination picks up the next brand accent. */
-  function dayTones(days) {
-    var tones = ['mint', 'chai', 'lantern'];
+  function dayTones(days, theme) {
+    var tones = tonesFrom(theme);
     var out = [], idx = 0, prev = null;
     days.forEach(function (d) {
       var key = String(d.when || d.title || '').split('·').pop().trim().toLowerCase();
@@ -230,7 +246,7 @@
   }
 
   function dayBlocks(model) {
-    var tones = dayTones(model.days);
+    var tones = dayTones(model.days, model.meta.theme);
     var blocks = [];
 
     model.days.forEach(function (d, i) {
@@ -263,7 +279,7 @@
       });
 
       if (d.total != null) {
-        var total = el('div', 'day-total');
+        var total = el('div', 'day-total day-total--' + tone);
         total.appendChild(el('div', 'k', 'Day ' + pad2(d.n || i + 1) + ' total'));
         total.appendChild(edit('div', 'v', P.money(d.total, 'INR'), base + '.totalText'));
         blocks.push({ node: total, day: i });
@@ -295,15 +311,18 @@
 
   /* ---- extras ----------------------------------------------------------- */
 
-  function extrasBlocks(model) {
+  function inclusionsBlocks(model) {
     var blocks = [];
     var head = el('div');
-    head.appendChild(el('h2', 'sec-title', 'Good to know'));
+    head.appendChild(el('h2', 'sec-title', 'Inclusions & exclusions'));
+    head.appendChild(el('p', 'sec-lede', 'What this package covers, and what it does not.'));
     blocks.push({ node: head });
 
-    if (model.inclusions.length || model.exclusions.length) {
-      var cols = el('div', 'cols');
+    var hasIn = model.inclusions.length > 0;
+    var hasEx = model.exclusions.length > 0;
+    var cols = el('div', 'cols' + (hasIn && hasEx ? '' : ' cols--single'));
 
+    if (hasIn) {
       var a = el('div');
       a.appendChild(el('div', 'col-title in', 'Included'));
       var ul1 = el('ul', 'tick in');
@@ -312,7 +331,9 @@
       });
       a.appendChild(ul1);
       cols.appendChild(a);
+    }
 
+    if (hasEx) {
       var b = el('div');
       b.appendChild(el('div', 'col-title ex', 'Not included'));
       var ul2 = el('ul', 'tick ex');
@@ -321,16 +342,22 @@
       });
       b.appendChild(ul2);
       cols.appendChild(b);
-
-      blocks.push({ node: cols });
     }
 
-    if (model.notes) {
-      var nb = el('div', 'notes-block');
-      nb.appendChild(el('h4', null, 'Please note'));
-      nb.appendChild(edit('p', null, model.notes, 'notes', 'Visas, insurance, altitude, anything worth flagging'));
-      blocks.push({ node: nb });
-    }
+    blocks.push({ node: cols });
+    return blocks;
+  }
+
+  function notesBlocks(model) {
+    var blocks = [];
+    var head = el('div');
+    head.appendChild(el('h2', 'sec-title', 'Good to know'));
+    blocks.push({ node: head });
+
+    var nb = el('div', 'notes-block');
+    nb.appendChild(el('h4', null, 'Please note'));
+    nb.appendChild(edit('p', null, model.notes, 'notes', 'Visas, insurance, altitude, anything worth flagging'));
+    blocks.push({ node: nb });
     return blocks;
   }
 
@@ -348,36 +375,45 @@
     blocks.push({ node: head });
 
     var rows = el('div');
-    function row(label, amount, hi) {
+    function row(container, label, amount, hi) {
       if (amount == null || !isFinite(amount)) return;
       var r = el('div', 'price-row' + (hi ? ' price-row--hi' : ''));
       r.appendChild(el('div', 'k', label));
       r.appendChild(el('div', 'v', P.money(amount, 'INR')));
-      rows.appendChild(r);
+      container.appendChild(r);
     }
 
     var span = model.days.length ? ' (Days 1–' + model.days.length + ')' : '';
-    if (p.activityTotal) row('Total activity cost' + span, p.activityTotal);
-    if (p.hotelTotal) row('Total accommodation cost (' + model.hotels.length + ' hotels)', p.hotelTotal);
-    if (p.activityTotal && p.hotelTotal) row('Total base cost', p.baseCost, true);
-    p.extras.forEach(function (e) { row(e.label, e.amount); });
-    if (p.margin) row('Margin', p.margin);
-    if (p.margin || p.extrasTotal) row('Subtotal', p.subtotal, true);
-    if (p.gst) row('GST (' + p.gstPct + '% of subtotal)', p.gst);
-    if (p.tcs) row('TCS (' + p.tcsPct + '% of subtotal)', p.tcs);
+    if (p.activityTotal) row(rows, 'Total activity cost' + span, p.activityTotal);
+    if (p.hotelTotal) row(rows, 'Total accommodation cost (' + model.hotels.length + ' hotels)', p.hotelTotal);
+    if (p.activityTotal && p.hotelTotal) row(rows, 'Total base cost', p.baseCost, true);
+    p.extras.forEach(function (e) { row(rows, e.label, e.amount); });
+    if (p.margin) row(rows, 'Margin', p.margin);
+    if (p.margin || p.extrasTotal) row(rows, 'Subtotal', p.subtotal, true);
     blocks.push({ node: rows });
 
+    // GST and TCS get their own clearly separated block rather than blending
+    // into the cost-breakdown list above.
+    if (p.gst || p.tcs) {
+      blocks.push({ node: el('h3', 'sub-title', 'Taxes & charges') });
+      var taxRows = el('div', 'tax-rows');
+      if (p.gst) row(taxRows, 'GST (' + p.gstPct + '% of subtotal)', p.gst);
+      if (p.tcs) row(taxRows, 'TCS (' + p.tcsPct + '% of subtotal)', p.tcs);
+      blocks.push({ node: taxRows });
+    }
+
     if (p.grandTotal) {
+      var partyLabel = [m.party, m.children].filter(Boolean).join(' · ');
       var grand = el('div', 'grand');
       grand.appendChild(el('div', 'k',
-        'Grand total' + (m.party ? ' · for ' + m.party.toLowerCase() : '')));
+        'Grand total' + (partyLabel ? ' · for ' + partyLabel.toLowerCase() : '')));
       grand.appendChild(el('div', 'v', P.money(p.grandTotal, 'INR')));
       blocks.push({ node: grand });
 
       if (p.perPerson) {
         var pp = el('div', 'per-person');
         pp.appendChild(el('div', 'k',
-          'Cost per person (' + P.money(p.grandTotal, 'INR') + ' ÷ ' + m.partyCount + ')'));
+          'Cost per person (' + P.money(p.grandTotal, 'INR') + ' ÷ ' + p.heads + ')'));
         pp.appendChild(el('div', 'v', P.money(p.perPerson, 'INR')));
         blocks.push({ node: pp });
       }
@@ -438,6 +474,12 @@
     host.textContent = '';
     var pages = [];
 
+    // The itinerary's lead accent, available to doc.css as --accent so the
+    // handful of document-wide accents (stat values, badges, grand total)
+    // follow it without every rule needing a JS-driven tone class.
+    var accentTone = TONES.indexOf(model.meta.theme) > -1 ? model.meta.theme : 'mint';
+    host.style.setProperty('--accent', window.GG.colour[accentTone]);
+
     function mount(p) { pages.push(p); host.appendChild(p); return p; }
 
     mount(coverPage(model));
@@ -469,10 +511,16 @@
       });
     }
 
-    if (model.inclusions.length || model.exclusions.length || model.notes) {
+    if (model.inclusions.length || model.exclusions.length) {
       flow(function () {
-        return mount(newPage(model, { l1: 'Before you go', l2: 'Inclusions & notes' }));
-      }, extrasBlocks(model));
+        return mount(newPage(model, { l1: 'Before you go', l2: 'Inclusions & exclusions' }));
+      }, inclusionsBlocks(model));
+    }
+
+    if (model.notes) {
+      flow(function () {
+        return mount(newPage(model, { l1: 'Before you go', l2: 'Notes' }));
+      }, notesBlocks(model));
     }
 
     if (model.pricing.grandTotal) {

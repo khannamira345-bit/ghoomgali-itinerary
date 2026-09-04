@@ -45,12 +45,29 @@
                           '|full\\s+day|half\\s+day|on\\s+arrival|morning|afternoon|evening|overnight|' +
                           'early\\s+morning|late\\s+evening|all\\s+day)\\b', 'i'),
 
-    secHotels: /^\s*(?:hotels?|accommodations?|stays?|where\s+you\s+stay)\s*:?\s*$/i,
-    secPrice:  /^\s*(?:pricing|price|cost\s+summary|costing|charges|totals?)\s*:?\s*$/i,
-    secIncl:   /^\s*(?:inclusions?|includes?|included|what'?s\s+included|(?:cost|package|price|tour)\s+includes?)\s*:?\s*$/i,
-    secExcl:   /^\s*(?:exclusions?|excludes?|excluded|not\s+included|what'?s\s+not\s+included|(?:cost|package|price|tour)\s+excludes?)\s*:?\s*$/i,
-    secNote:   /^\s*(?:notes?|important\s+notes?|please\s+note|good\s+to\s+know|terms(?:\s+(?:and|&)\s+conditions)?)\s*:?\s*$/i
+    // A colon or dash may be followed by trailing text ("Inclusions - what's covered");
+    // that text is ignored, but its presence must not stop the heading matching.
+    secHotels: /^\s*(?:hotels?|accommodations?|stays?|where\s+you\s+stay)\s*(?:[:\-–—]\s*.*)?$/i,
+    secPrice:  /^\s*(?:pricing|price|cost\s+summary|costing|charges|totals?)\s*(?:[:\-–—]\s*.*)?$/i,
+    secIncl:   /^\s*(?:inclusions?|includes?|included|what'?s\s+included|(?:cost|package|price|tour)\s+includes?)\s*(?:[:\-–—]\s*.*)?$/i,
+    secExcl:   /^\s*(?:exclusions?|excludes?|excluded|not\s+included|what'?s\s+not\s+included|(?:cost|package|price|tour)\s+excludes?)\s*(?:[:\-–—]\s*.*)?$/i,
+    secNote:   /^\s*(?:notes?|important\s+notes?|please\s+note|good\s+to\s+know|terms(?:\s+(?:and|&)\s+conditions)?)\s*(?:[:\-–—]\s*.*)?$/i
   };
+
+  var THEME_TONES = ['mint', 'chai', 'lantern'];
+
+  /* A trip's lead accent, chosen deterministically from its title so the same
+     trip keeps the same colour on a re-generate, but different trips differ. */
+  function hashTone(s) {
+    var h = 0;
+    for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+    return THEME_TONES[Math.abs(h) % THEME_TONES.length];
+  }
+
+  function autoTheme(meta) {
+    var seed = ((meta && meta.title) || '') + ((meta && meta.titleAccent) || '');
+    return hashTone(seed || 'ghoomgali');
+  }
 
   /* ---- helpers ---------------------------------------------------------- */
 
@@ -329,6 +346,11 @@
       d.total = any ? sum : d.total;
     });
 
+    // Re-read the child count from meta.children every time, so editing that
+    // field by hand immediately affects the per-person split below.
+    var childMatch = String(model.meta.children || '').match(/\d+/);
+    model.meta.childCount = childMatch ? parseInt(childMatch[0], 10) : 0;
+
     var p = model.pricing;
     p.activityTotal = model.days.reduce(function (a, d) { return a + (d.total || 0); }, 0);
     p.hotelTotal = model.hotels.reduce(function (a, h) { return a + (h.price || 0); }, 0);
@@ -339,7 +361,8 @@
     p.tcs = p.tcsPct ? p.subtotal * p.tcsPct / 100 : 0;
     p.grandTotal = p.subtotal + p.gst + p.tcs;
 
-    var heads = model.meta.partyCount;
+    var heads = (model.meta.partyCount || 0) + (model.meta.childCount || 0);
+    p.heads = heads || null;
     p.perPerson = heads ? p.grandTotal / heads : null;
 
     if (p.grandTotal) model.meta.total = money(p.grandTotal, model.meta.currency);
@@ -385,6 +408,12 @@
       if (!meta.party) meta.party = pax[1] + ' ' + (/adult/i.test(pax[2]) ? 'Adults' : 'Travelers');
     }
 
+    var kids = joined.match(/(\d+)\s*(child(?:ren)?|kids?)/i);
+    if (kids && !meta.children) {
+      var kn = parseInt(kids[1], 10);
+      meta.children = kids[1] + ' ' + (kn === 1 ? 'Child' : 'Children');
+    }
+
     var cities = joined.match(/(\d+)\s*(cities|citys|destinations?|places?)/i);
     if (cities && !meta.destinations) meta.destinations = cities[1] + ' ' + 'Cities';
 
@@ -398,6 +427,10 @@
     if (!meta.duration && model.days.length) {
       meta.duration = model.days.length + 'D / ' + Math.max(0, model.days.length - 1) + 'N';
     }
+
+    // Give every itinerary its own lead accent from the brand palette, so two
+    // trips don't default to the same mint-heavy look.
+    if (!meta.theme) meta.theme = autoTheme(meta);
 
     // Sensible default copy, all of it editable in the preview afterwards.
     var name = [meta.title, meta.titleAccent].filter(Boolean).join(' ').replace(/[.]+$/, '');
@@ -422,6 +455,8 @@
     recompute: recompute,
     money: money,
     groupINR: groupINR,
-    toNumber: toNumber
+    toNumber: toNumber,
+    autoTheme: autoTheme,
+    THEME_TONES: THEME_TONES
   };
 })();
