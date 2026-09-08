@@ -34,9 +34,31 @@
       </ol>
 
       <div class="field-group">
+        <h2 class="group-title">Layout</h2>
+        <p class="group-hint">Two ways to present the same trip. Switch any time — nothing is lost.</p>
+        <div class="layout-picker" id="layoutPicker">
+          <button type="button" class="layout-opt active" data-layout="editorial">
+            <b>Editorial</b><em>Magazine feel. Cover, overview, day cards.</em>
+          </button>
+          <button type="button" class="layout-opt" data-layout="quotation">
+            <b>Quotation</b><em>Quote ID, details table, advisor, terms.</em>
+          </button>
+        </div>
+        <input type="hidden" id="f-layout" value="editorial">
+      </div>
+
+      <div class="field-group">
         <h2 class="group-title">Trip details</h2>
         <p class="group-hint">These appear on the cover and overview pages. Leave any blank to hide it.</p>
         <div class="grid-2">
+          <label class="field">
+            <span>Guest name</span>
+            <input type="text" id="f-guest" placeholder="Shivani Sharma">
+          </label>
+          <label class="field">
+            <span>Advisor contact</span>
+            <input type="text" id="f-advisorPhone" placeholder="+91 88000 25030">
+          </label>
           <label class="field">
             <span>Trip title</span>
             <input type="text" id="f-title" placeholder="Vietnam">
@@ -115,6 +137,10 @@
             <span>TCS <em>%</em></span>
             <input type="number" id="c-tcs" min="0" max="100" step="0.5" placeholder="2">
           </label>
+          <label class="field field-wide">
+            <span>Discount <em>₹ — subtracted from the total</em></span>
+            <input type="number" id="c-discount" min="0" step="500" placeholder="0">
+          </label>
         </div>
 
         <dl class="cost-review" id="costReview">
@@ -169,6 +195,10 @@ Check in at Wildflower Hall
              with tax shown as its own section.</p>
           <p><b>Children:</b> mention <code>2 children</code> or <code>2 kids</code> anywhere in the
              opening lines and it appears as its own stat, and counts toward cost per person.</p>
+          <p><b>Terms:</b> start a line with <code>Terms</code> or <code>Cancellation Policy</code> and list beneath it.</p>
+          <p><b>Trip summary:</b> every entry is sorted into Morning, Afternoon or Evening automatically —
+             from words like "evening" or a time like <code>15:30</code>. On the Trip summary page,
+             click any entry to move it to a different column.</p>
           <p>Every card gets a photo slot. Click it, or drag an image straight onto it.</p>
         </details>
       </div>

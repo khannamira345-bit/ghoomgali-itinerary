@@ -461,6 +461,13 @@ css + '\n</style>\n</head>\n<body>\n' +
         if (p.tcs) line('TCS (' + p.tcsPct + '%)', p.tcs);
       }
 
+      if (p.discount) {
+        body.push(para([
+          run('Discount        ', { size: 11, color: C.canopy, b: true }),
+          run('− ' + inr(p.discount), { font: F.mono, size: 10.5, b: true, color: C.mint })
+        ], { after: 70 }));
+      }
+
       var partyLabelTxt = [m.party, m.children].filter(Boolean).join(' · ');
       body.push(para(run('GRAND TOTAL' + (partyLabelTxt ? '  ·  FOR ' + partyLabelTxt.toUpperCase() : ''),
         { font: F.mono, size: 9, color: C.canopy, spacing: 60 }), { before: 260, after: 70 }));
@@ -469,6 +476,18 @@ css + '\n</style>\n</head>\n<body>\n' +
         body.push(para(run('Cost per person (÷ ' + p.heads + ')   ' + inr(p.perPerson),
           { font: F.mono, size: 10, color: C.chai }), { after: 200 }));
       }
+    }
+
+    /* ---- terms ---- */
+    if (model.terms && model.terms.length) {
+      body.push(pageBreak());
+      body.push(para(run('BEFORE YOU BOOK', { font: F.mono, size: 9, color: C.chai, spacing: 60 }), { after: 60 }));
+      body.push(para(run('Terms & conditions', { font: F.display, size: 22, color: C.abyss }),
+        { after: 220, border: C.mint }));
+      model.terms.forEach(function (t, ti) {
+        body.push(para([run((ti + 1) + '.   ', { font: F.mono, color: C.chai, size: 10.5 }),
+                        run(t, { size: 10.5, color: C.abyss })], { after: 90, indent: 200 }));
+      });
     }
 
     if (m.closing) {

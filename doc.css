@@ -241,6 +241,97 @@
 .day-total--chai .v{color:var(--chai)}
 .day-total--lantern .v{color:var(--lantern)}
 
+/* ── Trip summary grid (morning / afternoon / evening) ─────────────── */
+.sum-head{
+  display:grid; grid-template-columns:repeat(3,1fr);
+  background:var(--light-mint); border:1px solid var(--line); border-bottom:none;
+  border-radius:10px 10px 0 0; overflow:hidden;
+}
+.sum-head div{
+  padding:10px 14px; text-align:center;
+  font-family:var(--m); font-size:9px; letter-spacing:.18em; text-transform:uppercase;
+  color:var(--canopy);
+}
+.sum-head div + div{border-left:1px solid var(--line)}
+
+.sum-day{border:1px solid var(--line); border-top:none; overflow:hidden}
+.sum-day:last-child{border-radius:0 0 10px 10px}
+.sum-bar{
+  display:flex; align-items:baseline; justify-content:space-between; gap:12px;
+  padding:9px 15px; background:rgba(12,32,39,.035); border-bottom:1px solid var(--line);
+}
+.sum-n{
+  font-family:var(--m); font-size:10px; letter-spacing:.14em; text-transform:uppercase;
+  font-weight:700; color:var(--accent);
+}
+.sum-when{
+  font-family:var(--m); font-size:8.5px; letter-spacing:.1em; text-transform:uppercase;
+  color:rgba(12,32,39,.5);
+}
+.sum-cols{display:grid; grid-template-columns:repeat(3,1fr)}
+.sum-col{padding:11px 14px}
+.sum-col + .sum-col{border-left:1px solid var(--line)}
+.sum-col ul{list-style:none; margin:0; padding:0}
+.sum-item{
+  position:relative; display:flex; align-items:flex-start; gap:5px;
+  padding:0 0 6px 11px; font-size:11px; line-height:1.45; color:rgba(12,32,39,.8);
+}
+.sum-item::before{
+  content:""; position:absolute; left:0; top:6px;
+  width:3px; height:3px; border-radius:50%; background:var(--accent);
+}
+.sum-item:last-child{padding-bottom:0}
+.sum-item-text{flex:1; min-width:0}
+.sum-move{
+  flex:none; width:14px; height:14px; line-height:13px; padding:0; margin-top:1px;
+  border:none; background:none; color:rgba(12,32,39,.25); font-size:10px;
+  border-radius:3px; cursor:pointer; opacity:0; transition:.14s;
+}
+.sum-item:hover .sum-move{opacity:1}
+.sum-move:hover{background:var(--light-mint); color:var(--canopy)}
+.doc.exporting .sum-move{display:none}
+
+.sum-free{
+  padding:0 0 6px 11px; font-size:11px; color:rgba(12,32,39,.35) !important; font-style:italic;
+  position:relative;
+}
+.sum-free::before{
+  content:""; position:absolute; left:0; top:6px;
+  width:3px; height:3px; border-radius:50%; background:rgba(12,32,39,.2);
+}
+
+/* ── Quotation key/value table ─────────────────────────────────────── */
+.kv{border:1px solid var(--line); border-radius:10px; overflow:hidden; margin-bottom:22px}
+.kv-row{display:flex; align-items:baseline; justify-content:space-between; gap:20px; padding:12px 16px}
+.kv-row:nth-child(odd){background:rgba(12,32,39,.03)}
+.kv-k{font-size:12px; color:var(--muted)}
+.kv-v{font-size:12.5px; font-weight:600; text-align:right}
+
+.advisor{
+  display:grid; grid-template-columns:1fr 92px; gap:16px; align-items:center;
+  border:1px solid var(--line); border-left:3px solid var(--accent);
+  border-radius:10px; padding:15px 18px; background:#fff;
+}
+.advisor-k{
+  font-family:var(--m); font-size:8.5px; letter-spacing:.18em; text-transform:uppercase;
+  color:var(--chai); margin-bottom:6px;
+}
+.advisor-n{font-family:var(--d); font-size:18px; line-height:1.2}
+.advisor-c{font-family:var(--m); font-size:10px; color:var(--muted); margin-top:5px}
+.advisor-photo{
+  width:92px; height:92px; border-radius:50%; overflow:hidden; justify-self:end;
+  background-position:center; background-size:cover; background-repeat:no-repeat;
+  background-color:var(--light-mint); border:1px solid var(--line);
+}
+
+/* ── Terms ─────────────────────────────────────────────────────────── */
+.terms{margin:0; padding:0 0 0 20px; counter-reset:t}
+.terms li{
+  font-size:12px; line-height:1.6; color:rgba(12,32,39,.78);
+  padding:0 0 9px 4px;
+}
+.terms li::marker{color:var(--accent); font-family:var(--m); font-size:10px}
+
 /* ── Pricing table ─────────────────────────────────────────────────── */
 .price-row{
   display:flex; align-items:center; justify-content:space-between; gap:20px;
@@ -251,6 +342,8 @@
 .price-row--hi{background:var(--light-mint); border-radius:7px; border-bottom-color:transparent}
 .price-row--hi .k{font-weight:700}
 .price-row--hi .v{font-weight:700}
+.price-row--discount .k{color:var(--canopy); font-weight:600}
+.price-row--discount .v{color:var(--mint); font-weight:700}
 
 /* GST/TCS get their own visually separated, boxed section rather than
    blending into the cost-breakdown rows above them. */

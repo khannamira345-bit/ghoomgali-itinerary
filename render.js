@@ -361,6 +361,145 @@
     return blocks;
   }
 
+  /* ---- trip summary grid ------------------------------------------------ */
+
+  function summaryHeader() {
+    var h = el('div', 'sum-head');
+    ['Morning', 'Afternoon', 'Evening'].forEach(function (t) {
+      h.appendChild(el('div', null, t));
+    });
+    return h;
+  }
+
+  function summaryDayRow(d, i) {
+    var wrap = el('div', 'sum-day');
+
+    var bar = el('div', 'sum-bar');
+    bar.appendChild(el('span', 'sum-n', 'Day ' + pad2(d.n || i + 1)));
+    bar.appendChild(el('span', 'sum-when', d.when || ''));
+    wrap.appendChild(bar);
+
+    var cols = el('div', 'sum-cols');
+    (P.PARTS || ['morning', 'afternoon', 'evening']).forEach(function (part) {
+      var c = el('div', 'sum-col');
+      var ul = el('ul');
+      d.items.forEach(function (it, j) {
+        if (it.part !== part) return;
+        var base = 'days.' + i + '.items.' + j;
+        var li = el('li', 'sum-item');
+        // The text is its own editable span so the move button beside it can
+        // be clicked without landing inside - and disturbing - the caret.
+        li.appendChild(edit('span', 'sum-item-text', it.title, base + '.title', 'Entry'));
+        var mv = document.createElement('button');
+        mv.type = 'button';
+        mv.className = 'sum-move';
+        mv.title = 'Move to a different time of day';
+        mv.textContent = '⇄';
+        mv.dataset.movePart = base + '.part';
+        li.appendChild(mv);
+        ul.appendChild(li);
+      });
+      if (!ul.childNodes.length) ul.appendChild(el('li', 'sum-free', 'At leisure'));
+      c.appendChild(ul);
+      cols.appendChild(c);
+    });
+    wrap.appendChild(cols);
+    return wrap;
+  }
+
+  function summaryBlocks(model) {
+    var blocks = [];
+    var head = el('div');
+    head.appendChild(el('h2', 'sec-title', 'Trip summary'));
+    head.appendChild(el('p', 'sec-lede',
+      'The whole trip at a glance — what happens each morning, afternoon and evening.'));
+    blocks.push({ node: head, keepWithNext: true });
+    blocks.push({ node: summaryHeader(), summaryHeader: true, keepWithNext: true });
+    model.days.forEach(function (d, i) {
+      blocks.push({ node: summaryDayRow(d, i), summaryRow: true });
+    });
+    return blocks;
+  }
+
+  /* ---- quotation trip details ------------------------------------------- */
+
+  function inclusionCounts(model) {
+    var stays = model.hotels.length;
+    var things = model.days.reduce(function (a, d) { return a + d.items.length; }, 0);
+    return [
+      stays ? stays + ' place' + (stays > 1 ? 's' : '') + ' to stay' : null,
+      things ? things + ' thing' + (things > 1 ? 's' : '') + ' to do' : null
+    ].filter(Boolean).join(' · ');
+  }
+
+  function tripDetailsBlocks(model) {
+    var m = model.meta;
+    var blocks = [];
+
+    var head = el('div');
+    head.appendChild(el('h2', 'sec-title', 'Trip details'));
+    blocks.push({ node: head, keepWithNext: true });
+
+    var table = el('div', 'kv');
+    function kv(k, v, path, ph) {
+      if (!v && !path) return;
+      var r = el('div', 'kv-row');
+      r.appendChild(el('div', 'kv-k', k));
+      r.appendChild(path ? edit('div', 'kv-v', v, path, ph) : el('div', 'kv-v', v));
+      table.appendChild(r);
+    }
+    kv('Quote ID', m.quoteId, 'meta.quoteId', 'GG-00000000');
+    kv('Prepared for', m.guest, 'meta.guest', 'Guest name');
+    kv('Destination', m.destinations, 'meta.destinations', '—');
+    kv('Travel dates', m.dates, 'meta.dates', '—');
+    kv('Duration', m.duration, 'meta.duration', '—');
+    kv('Travellers', [m.party, m.children].filter(Boolean).join(' · ') || '—');
+    kv('Validity', m.validity, 'meta.validity', '7 days from issue date');
+    var counts = inclusionCounts(model);
+    if (counts) kv('Inclusions', counts);
+    if (m.total) kv('Total', m.total);
+    blocks.push({ node: table });
+
+    if (m.preparedBy || m.advisorPhone) {
+      var adv = el('div', 'advisor');
+      var body = el('div');
+      body.appendChild(el('div', 'advisor-k', 'Your travel advisor'));
+      body.appendChild(edit('div', 'advisor-n', m.preparedBy, 'meta.preparedBy', 'Advisor name'));
+      body.appendChild(edit('div', 'advisor-c', m.advisorPhone, 'meta.advisorPhone', 'Phone or email'));
+      adv.appendChild(body);
+      adv.appendChild(photo('advisor-photo', m.advisorPhoto, 'meta.advisorPhoto', 'Photo'));
+      blocks.push({ node: adv });
+    }
+    return blocks;
+  }
+
+  function accommodationBlocks(model) {
+    var blocks = [];
+    if (!model.hotels.length) return blocks;
+    blocks.push({ node: el('h2', 'sec-title', 'Where you stay'), keepWithNext: true });
+    var tones = tonesFrom(model.meta.theme);
+    model.hotels.forEach(function (h, i) {
+      blocks.push({ node: hotelCard(h, i, tones) });
+    });
+    return blocks;
+  }
+
+  /* ---- terms ------------------------------------------------------------ */
+
+  function termsBlocks(model) {
+    var blocks = [];
+    var head = el('div');
+    head.appendChild(el('h2', 'sec-title', 'Terms & conditions'));
+    blocks.push({ node: head, keepWithNext: true });
+
+    var ol = el('ol', 'terms');
+    model.terms.forEach(function (t, i) {
+      ol.appendChild(edit('li', null, t, 'terms.' + i, 'Add a term'));
+    });
+    blocks.push({ node: ol });
+    return blocks;
+  }
+
   /* ---- pricing ---------------------------------------------------------- */
 
   function pricingBlocks(model) {
@@ -412,6 +551,15 @@
       blocks.push({ node: taxRows });
     }
 
+    if (p.discount) {
+      var dRow = el('div');
+      var r = el('div', 'price-row price-row--discount');
+      r.appendChild(el('div', 'k', 'Discount'));
+      r.appendChild(el('div', 'v', '− ' + P.money(p.discount, 'INR')));
+      dRow.appendChild(r);
+      blocks.push({ node: dRow });
+    }
+
     if (p.grandTotal) {
       var partyLabel = [m.party, m.children].filter(Boolean).join(' · ');
       var grand = el('div', 'grand');
@@ -426,6 +574,12 @@
           'Cost per person (' + P.money(p.grandTotal, 'INR') + ' ÷ ' + p.heads + ')'));
         pp.appendChild(el('div', 'v', P.money(p.perPerson, 'INR')));
         blocks.push({ node: pp });
+      }
+      if (p.perAdult && m.childCount) {
+        var pa = el('div', 'per-person');
+        pa.appendChild(el('div', 'k', 'Per adult (' + m.partyCount + ' adults)'));
+        pa.appendChild(el('div', 'v', P.money(p.perAdult, 'INR')));
+        blocks.push({ node: pa });
       }
     }
 
@@ -492,12 +646,43 @@
 
     function mount(p) { pages.push(p); host.appendChild(p); return p; }
 
+    var quotation = model.meta.layout === 'quotation';
+
     mount(coverPage(model));
 
-    if (model.hotels.length || model.meta.duration) {
+    if (quotation) {
+      flow(function () {
+        return mount(newPage(model, { l1: 'Quotation', l2: 'Trip details' }));
+      }, tripDetailsBlocks(model));
+
+      if (model.hotels.length) {
+        flow(function () {
+          return mount(newPage(model, { l1: 'Package summary', l2: 'Accommodation' }));
+        }, accommodationBlocks(model));
+      }
+    } else if (model.hotels.length || model.meta.duration) {
       flow(function () {
         return mount(newPage(model, { l1: 'Package summary', l2: 'Trip overview' }));
       }, overviewBlocks(model));
+    }
+
+    /* The morning / afternoon / evening grid - the whole trip on one page. */
+    if (model.days.length) {
+      var sblocks = summaryBlocks(model);
+      flow(function () {
+        return mount(newPage(model, { l1: 'Trip summary', l2: 'At a glance' }));
+      }, sblocks);
+
+      // Repeat the column header wherever the grid spills onto a new page.
+      var headed = [];
+      sblocks.forEach(function (b) {
+        if (b.summaryHeader && b.page) headed.push(b.page);
+      });
+      sblocks.forEach(function (b) {
+        if (!b.summaryRow || !b.page || headed.indexOf(b.page) > -1) return;
+        b.page._body.insertBefore(summaryHeader(), b.page._body.firstChild);
+        headed.push(b.page);
+      });
     }
 
     if (model.days.length) {
@@ -535,8 +720,17 @@
 
     if (model.pricing.grandTotal) {
       flow(function () {
-        return mount(newPage(model, { l1: 'Cost summary', l2: 'Final package pricing' }));
+        return mount(newPage(model, {
+          l1: 'Cost summary',
+          l2: quotation ? 'Trip quotation' : 'Final package pricing'
+        }));
       }, pricingBlocks(model));
+    }
+
+    if (model.terms && model.terms.length) {
+      flow(function () {
+        return mount(newPage(model, { l1: 'Before you book', l2: 'Terms & conditions' }));
+      }, termsBlocks(model));
     }
 
     var total = pages.length;

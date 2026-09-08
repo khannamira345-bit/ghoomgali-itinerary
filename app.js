@@ -15,7 +15,8 @@
   var fileProject = $('fileProject');
 
   var FIELDS = ['title', 'titleAccent', 'subtitle', 'dates', 'duration',
-                'party', 'children', 'destinations', 'preparedOn', 'preparedBy', 'fileName'];
+                'party', 'children', 'destinations', 'preparedOn', 'preparedBy', 'fileName',
+                'guest', 'advisorPhone'];
 
   var ZOOMS = ['fit', 0.5, 0.75, 1, 1.25, 1.5];
 
@@ -70,7 +71,7 @@
       try {
         localStorage.setItem(STORE, JSON.stringify({
           model: state.model, raw: $('raw').value, fields: readFields(),
-          themeChoice: $('f-theme').value
+          themeChoice: $('f-theme').value, layoutChoice: $('f-layout').value
         }));
         var s = $('saveState');
         s.classList.add('on');
@@ -99,6 +100,8 @@
     });
     $('f-theme').value = data.themeChoice || '';
     syncThemeSwatchUI();
+    $('f-layout').value = data.layoutChoice || 'editorial';
+    syncLayoutPickerUI();
     if (data.model && data.model.days) {
       state.model = data.model;
       rerender();
@@ -125,6 +128,9 @@
 
     var themeChoice = $('f-theme').value;
     if (themeChoice) model.meta.theme = themeChoice;
+
+    var layoutChoice = $('f-layout').value;
+    if (layoutChoice) model.meta.layout = layoutChoice;
 
     window.GGParser.recompute(model);
 
@@ -303,6 +309,20 @@
     });
   });
 
+  /* ---- trip summary day-part reassignment -------------------------------- */
+
+  docEl.addEventListener('click', function (e) {
+    var btn = e.target.closest('.sum-move');
+    if (!btn || !state.model) return;
+    var path = btn.dataset.movePart;
+    var parts = window.GGParser.PARTS || ['morning', 'afternoon', 'evening'];
+    var current = getPath(state.model, path);
+    var next = parts[(parts.indexOf(current) + 1) % parts.length];
+    setPath(state.model, path, next);
+    rerender();
+    save();
+  });
+
   /* ---- per-card toolbar ------------------------------------------------- */
 
   docEl.addEventListener('mouseover', function (e) {
@@ -443,14 +463,14 @@
     var money = window.GGParser.money;
     box.textContent = '';
 
-    function row(label, amount, cls) {
+    function row(label, amount, cls, prefix) {
       if (amount == null || !isFinite(amount) || !amount) return;
       var d = document.createElement('div');
       d.className = 'row' + (cls ? ' ' + cls : '');
       var dt = document.createElement('dt');
       dt.textContent = label;
       var dd = document.createElement('dd');
-      dd.textContent = money(amount, 'INR');
+      dd.textContent = (prefix || '') + money(amount, 'INR');
       d.appendChild(dt); d.appendChild(dd);
       box.appendChild(d);
     }
@@ -463,8 +483,10 @@
     row('Subtotal', p.subtotal, 'row--sum');
     if (p.gst) row('GST ' + p.gstPct + '%', p.gst);
     if (p.tcs) row('TCS ' + p.tcsPct + '%', p.tcs);
+    row('Discount', p.discount, 'row--discount', '− ');
     row('Grand total', p.grandTotal, 'row--grand');
     if (p.perPerson) row('Per person (÷ ' + p.heads + ')', p.perPerson);
+    if (p.perAdult && state.model.meta.childCount) row('Per adult', p.perAdult);
   }
 
   function writeCostInputs() {
@@ -473,6 +495,7 @@
     $('c-margin').value = p.margin != null ? p.margin : '';
     $('c-gst').value = p.gstPct != null ? p.gstPct : '';
     $('c-tcs').value = p.tcsPct != null ? p.tcsPct : '';
+    $('c-discount').value = p.discount != null ? p.discount : '';
     $('c-showMargin').checked = !!state.model.meta.showMargin;
   }
 
@@ -483,13 +506,14 @@
     return isFinite(n) ? n : null;
   }
 
-  ['c-margin', 'c-gst', 'c-tcs'].forEach(function (id) {
+  ['c-margin', 'c-gst', 'c-tcs', 'c-discount'].forEach(function (id) {
     $(id).addEventListener('input', function () {
       if (!state.model) return;
       var p = state.model.pricing;
       if (id === 'c-margin') p.margin = numOrNull($(id).value);
       if (id === 'c-gst') p.gstPct = numOrNull($(id).value);
       if (id === 'c-tcs') p.tcsPct = numOrNull($(id).value);
+      if (id === 'c-discount') p.discount = numOrNull($(id).value);
       window.GGParser.recompute(state.model);
       refreshCostReview();
       rerender();
@@ -506,6 +530,30 @@
       ? 'Margin and base cost will print on the PDF — internal copy.'
       : 'Margin hidden. The PDF now shows only the package price and taxes.');
   });
+
+  /* ---- layout picker ------------------------------------------------------ */
+
+  function syncLayoutPickerUI() {
+    var current = $('f-layout').value || 'editorial';
+    Array.prototype.slice.call(document.querySelectorAll('#layoutPicker .layout-opt')).forEach(function (b) {
+      b.classList.toggle('active', b.dataset.layout === current);
+    });
+  }
+
+  var layoutPicker = $('layoutPicker');
+  if (layoutPicker) {
+    layoutPicker.addEventListener('click', function (e) {
+      var btn = e.target.closest('.layout-opt');
+      if (!btn) return;
+      $('f-layout').value = btn.dataset.layout;
+      syncLayoutPickerUI();
+      if (state.model) {
+        state.model.meta.layout = btn.dataset.layout;
+        rerender();
+      }
+      save();
+    });
+  }
 
   /* ---- theme picker ------------------------------------------------------ */
 
@@ -569,7 +617,9 @@
     FIELDS.forEach(function (k) { $('f-' + k).value = ''; });
     $('f-theme').value = '';
     syncThemeSwatchUI();
-    ['c-margin', 'c-gst', 'c-tcs'].forEach(function (id) { $(id).value = ''; });
+    $('f-layout').value = 'editorial';
+    syncLayoutPickerUI();
+    ['c-margin', 'c-gst', 'c-tcs', 'c-discount'].forEach(function (id) { $(id).value = ''; });
     $('c-showMargin').checked = false;
     refreshCostReview();
     docEl.textContent = '';
@@ -707,6 +757,12 @@
     'Margin | 45000',
     'GST | 5%',
     'TCS | 2%',
+    'Discount | 5000',
+    '',
+    'Terms',
+    'Cancellations accepted up to 7 days before departure; non-refundable components are deducted first.',
+    'Flights, including any internal transfers, are not included and must be arranged independently.',
+    'Hotel check-in is from 2:00 PM and check-out by 11:00 AM.',
     '',
     'Notes',
     'Domestic flights within Vietnam are quoted separately and confirmed once dates are locked.',
@@ -732,7 +788,7 @@
   }
 
   preloadLogos().then(function () {
-    if (!restore()) { emptyState.hidden = false; syncThemeSwatchUI(); }
+    if (!restore()) { emptyState.hidden = false; syncThemeSwatchUI(); syncLayoutPickerUI(); }
     $('raw').dispatchEvent(new Event('input'));
   });
 })();

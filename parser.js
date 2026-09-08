@@ -51,8 +51,34 @@
     secPrice:  /^\s*(?:pricing|price|cost\s+summary|costing|charges|totals?)\s*(?:[:\-–—]\s*.*)?$/i,
     secIncl:   /^\s*(?:inclusions?|includes?|included|what'?s\s+included|(?:cost|package|price|tour)\s+includes?)\s*(?:[:\-–—]\s*.*)?$/i,
     secExcl:   /^\s*(?:exclusions?|excludes?|excluded|not\s+included|what'?s\s+not\s+included|(?:cost|package|price|tour)\s+excludes?)\s*(?:[:\-–—]\s*.*)?$/i,
-    secNote:   /^\s*(?:notes?|important\s+notes?|please\s+note|good\s+to\s+know|terms(?:\s+(?:and|&)\s+conditions)?)\s*(?:[:\-–—]\s*.*)?$/i
+    secNote:   /^\s*(?:notes?|important\s+notes?|please\s+note|good\s+to\s+know)\s*(?:[:\-–—]\s*.*)?$/i,
+    secTerms:  /^\s*(?:terms(?:\s*(?:and|&)\s*conditions)?|t\s*&\s*c|cancellation(?:\s+policy)?|policy|policies)\s*(?:[:\-–—]\s*.*)?$/i
   };
+
+  var PARTS = ['morning', 'afternoon', 'evening'];
+
+  /* Which third of the day an entry belongs to. Read from its own wording
+     first, then from any clock time in it; anything still unresolved inherits
+     the entry before it, so the summary grid is never left with holes. */
+  function inferPart(text) {
+    var s = String(text || '');
+    if (/\b(?:early\s+morning|morning|breakfast|sunrise|on\s+arrival|check[\s-]?in\s+at\s+\d{1,2}\s*am)\b/i.test(s)) return 'morning';
+    if (/\b(?:afternoon|lunch|midday|noon|post[\s-]?lunch)\b/i.test(s)) return 'afternoon';
+    if (/\b(?:evening|night|sunset|dinner|overnight|late)\b/i.test(s)) return 'evening';
+
+    var t = s.match(/\b(\d{1,2})[:.](\d{2})\s*(am|pm)?/i);
+    if (t) {
+      var h = parseInt(t[1], 10);
+      var ap = (t[3] || '').toLowerCase();
+      if (ap === 'pm' && h < 12) h += 12;
+      if (ap === 'am' && h === 12) h = 0;
+      if (h < 12) return 'morning';
+      if (h < 17) return 'afternoon';
+      return 'evening';
+    }
+    if (/\b(?:full\s+day|all\s+day|half\s+day)\b/i.test(s)) return 'morning';
+    return null;
+  }
 
   var THEME_TONES = ['mint', 'chai', 'lantern'];
 
@@ -121,9 +147,10 @@
       cover: { image: '' },
       hotels: [],
       days: [],
-      pricing: { margin: null, gstPct: null, tcsPct: null, extras: [] },
+      pricing: { margin: null, gstPct: null, tcsPct: null, discount: null, extras: [] },
       inclusions: [],
       exclusions: [],
+      terms: [],
       notes: '',
       preamble: []
     };
@@ -184,12 +211,14 @@
         if (RE.secPrice.test(body))  { mode = 'price';  closeCard(); return; }
         if (RE.secIncl.test(body))   { mode = 'incl';   closeCard(); return; }
         if (RE.secExcl.test(body))   { mode = 'excl';   closeCard(); return; }
+        if (RE.secTerms.test(body))  { mode = 'terms';  closeCard(); return; }
         if (RE.secNote.test(body))   { mode = 'note';   closeCard(); return; }
       }
 
       /* -- simple list sections -- */
       if (mode === 'incl') { model.inclusions.push(stripEdges(body)); return; }
       if (mode === 'excl') { model.exclusions.push(stripEdges(body)); return; }
+      if (mode === 'terms') { model.terms.push(stripEdges(body)); return; }
       if (mode === 'note') { noteLines.push(body); return; }
 
       /* -- hotels -- */
@@ -267,7 +296,8 @@
       bullets: [],
       note: '',
       price: price,
-      image: ''
+      image: '',
+      part: inferPart((eyebrow || '') + ' ' + (title || text))
     };
   }
 
@@ -299,9 +329,10 @@
     var label = p[0] || text;
     var value = p.length > 1 ? p.slice(1).join(' ') : text;
 
-    if (/margin/i.test(label))  { pricing.margin = toNumber(value); return; }
-    if (/\bgst\b/i.test(label)) { pricing.gstPct = pctOf(value); return; }
-    if (/\btcs\b/i.test(label)) { pricing.tcsPct = pctOf(value); return; }
+    if (/margin/i.test(label))   { pricing.margin = toNumber(value); return; }
+    if (/discount|rebate/i.test(label)) { pricing.discount = toNumber(value); return; }
+    if (/\bgst\b/i.test(label))  { pricing.gstPct = pctOf(value); return; }
+    if (/\btcs\b/i.test(label))  { pricing.tcsPct = pctOf(value); return; }
 
     var n = toNumber(value);
     if (n != null && p.length > 1) pricing.extras.push({ label: label, amount: n });
@@ -351,6 +382,16 @@
     var childMatch = String(model.meta.children || '').match(/\d+/);
     model.meta.childCount = childMatch ? parseInt(childMatch[0], 10) : 0;
 
+    // Every entry lands in a third of the day. Anything the wording didn't
+    // resolve inherits the entry before it, so the grid has no holes.
+    model.days.forEach(function (d) {
+      var last = 'morning';
+      d.items.forEach(function (it) {
+        if (PARTS.indexOf(it.part) === -1) it.part = last;
+        last = it.part;
+      });
+    });
+
     var p = model.pricing;
     p.activityTotal = model.days.reduce(function (a, d) { return a + (d.total || 0); }, 0);
     p.hotelTotal = model.hotels.reduce(function (a, h) { return a + (h.price || 0); }, 0);
@@ -359,11 +400,12 @@
     p.subtotal = p.baseCost + (p.margin || 0) + p.extrasTotal;
     p.gst = p.gstPct ? p.subtotal * p.gstPct / 100 : 0;
     p.tcs = p.tcsPct ? p.subtotal * p.tcsPct / 100 : 0;
-    p.grandTotal = p.subtotal + p.gst + p.tcs;
+    p.grandTotal = p.subtotal + p.gst + p.tcs - (p.discount || 0);
 
     var heads = (model.meta.partyCount || 0) + (model.meta.childCount || 0);
     p.heads = heads || null;
     p.perPerson = heads ? p.grandTotal / heads : null;
+    p.perAdult = model.meta.partyCount ? p.grandTotal / model.meta.partyCount : null;
 
     if (p.grandTotal) model.meta.total = money(p.grandTotal, model.meta.currency);
   }
@@ -431,6 +473,16 @@
     // Give every itinerary its own lead accent from the brand palette, so two
     // trips don't default to the same mint-heavy look.
     if (!meta.theme) meta.theme = autoTheme(meta);
+    if (!meta.layout) meta.layout = 'editorial';
+
+    // Quotation details. Stable per trip: the id is derived from the title so
+    // regenerating the same trip does not mint a new quote number.
+    if (!meta.quoteId) {
+      var h = 0, seed = (meta.title || '') + (meta.titleAccent || '') + (meta.dates || '');
+      for (var qi = 0; qi < seed.length; qi++) h = (h * 31 + seed.charCodeAt(qi)) | 0;
+      meta.quoteId = 'GG-' + String(Math.abs(h) % 100000000).padStart(8, '0');
+    }
+    if (!meta.validity) meta.validity = '7 days from issue date';
 
     // Sensible default copy, all of it editable in the preview afterwards.
     var name = [meta.title, meta.titleAccent].filter(Boolean).join(' ').replace(/[.]+$/, '');
@@ -458,6 +510,8 @@
     groupINR: groupINR,
     toNumber: toNumber,
     autoTheme: autoTheme,
-    THEME_TONES: THEME_TONES
+    inferPart: inferPart,
+    THEME_TONES: THEME_TONES,
+    PARTS: PARTS
   };
 })();
