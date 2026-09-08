@@ -440,9 +440,10 @@
         (meta.destinations ? ' across all ' + meta.destinations.toLowerCase() : '') + '.';
     }
     if (!meta.pricingLede) {
+      var whoFor = [meta.party, meta.children].filter(Boolean).join(' and ').toLowerCase();
       meta.pricingLede = 'Complete cost breakdown for the ' +
         (meta.duration ? meta.duration + ' ' : '') + (name || '') +
-        ' package' + (meta.party ? ', covering all ' + meta.party.toLowerCase() : '') + '.';
+        ' package' + (whoFor ? ', covering all ' + whoFor : '') + '.';
     }
     if (!meta.closing) {
       meta.closing = '“The world has highways. We know the galis.” Thank you for planning ' +

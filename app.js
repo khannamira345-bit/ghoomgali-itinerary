@@ -102,6 +102,8 @@
     if (data.model && data.model.days) {
       state.model = data.model;
       rerender();
+      writeCostInputs();
+      refreshCostReview();
       return true;
     }
     return false;
@@ -131,6 +133,8 @@
     state.model = model;
     rerender();
     writeFields(model.meta);
+    writeCostInputs();
+    refreshCostReview();
     save();
 
     if (!model.days.length) {
@@ -224,6 +228,7 @@
     if (!/\.(priceText|totalText)$/.test(node.dataset.path)) return;
     window.GGParser.recompute(state.model);
     rerender();
+    refreshCostReview();
     save();
   });
 
@@ -342,6 +347,7 @@
     itemTools.hidden = true;
     window.GGParser.recompute(state.model);
     rerender();
+    refreshCostReview();
     save();
   });
 
@@ -413,11 +419,92 @@
       state.model = model;
       writeFields(model.meta || {});
       rerender();
+      writeCostInputs();
+      refreshCostReview();
       save();
       toast('Project loaded — ' + model.days.length + ' days.');
     } catch (err) {
       toast(err.message, true);
     }
+  });
+
+  /* ---- costing ----------------------------------------------------------- */
+
+  /* The costing panel is the review step: every figure, margin included, is
+     visible here before anything is downloaded. What reaches the traveller's
+     PDF is controlled separately by the "show margin" box. */
+  function refreshCostReview() {
+    var box = $('costReview');
+    if (!state.model || !state.model.pricing) {
+      box.innerHTML = '<div class="cost-empty">Generate an itinerary to see the costing.</div>';
+      return;
+    }
+    var p = state.model.pricing;
+    var money = window.GGParser.money;
+    box.textContent = '';
+
+    function row(label, amount, cls) {
+      if (amount == null || !isFinite(amount) || !amount) return;
+      var d = document.createElement('div');
+      d.className = 'row' + (cls ? ' ' + cls : '');
+      var dt = document.createElement('dt');
+      dt.textContent = label;
+      var dd = document.createElement('dd');
+      dd.textContent = money(amount, 'INR');
+      d.appendChild(dt); d.appendChild(dd);
+      box.appendChild(d);
+    }
+
+    row('Activities', p.activityTotal);
+    row('Accommodation', p.hotelTotal);
+    row('Base cost', p.baseCost, 'row--sum');
+    p.extras.forEach(function (e) { row(e.label, e.amount); });
+    row('Margin', p.margin, 'row--margin');
+    row('Subtotal', p.subtotal, 'row--sum');
+    if (p.gst) row('GST ' + p.gstPct + '%', p.gst);
+    if (p.tcs) row('TCS ' + p.tcsPct + '%', p.tcs);
+    row('Grand total', p.grandTotal, 'row--grand');
+    if (p.perPerson) row('Per person (÷ ' + p.heads + ')', p.perPerson);
+  }
+
+  function writeCostInputs() {
+    if (!state.model || !state.model.pricing) return;
+    var p = state.model.pricing;
+    $('c-margin').value = p.margin != null ? p.margin : '';
+    $('c-gst').value = p.gstPct != null ? p.gstPct : '';
+    $('c-tcs').value = p.tcsPct != null ? p.tcsPct : '';
+    $('c-showMargin').checked = !!state.model.meta.showMargin;
+  }
+
+  function numOrNull(v) {
+    var s = String(v).trim();
+    if (!s) return null;
+    var n = parseFloat(s);
+    return isFinite(n) ? n : null;
+  }
+
+  ['c-margin', 'c-gst', 'c-tcs'].forEach(function (id) {
+    $(id).addEventListener('input', function () {
+      if (!state.model) return;
+      var p = state.model.pricing;
+      if (id === 'c-margin') p.margin = numOrNull($(id).value);
+      if (id === 'c-gst') p.gstPct = numOrNull($(id).value);
+      if (id === 'c-tcs') p.tcsPct = numOrNull($(id).value);
+      window.GGParser.recompute(state.model);
+      refreshCostReview();
+      rerender();
+      save();
+    });
+  });
+
+  $('c-showMargin').addEventListener('change', function () {
+    if (!state.model) return;
+    state.model.meta.showMargin = $('c-showMargin').checked;
+    rerender();
+    save();
+    toast($('c-showMargin').checked
+      ? 'Margin and base cost will print on the PDF — internal copy.'
+      : 'Margin hidden. The PDF now shows only the package price and taxes.');
   });
 
   /* ---- theme picker ------------------------------------------------------ */
@@ -482,6 +569,9 @@
     FIELDS.forEach(function (k) { $('f-' + k).value = ''; });
     $('f-theme').value = '';
     syncThemeSwatchUI();
+    ['c-margin', 'c-gst', 'c-tcs'].forEach(function (id) { $(id).value = ''; });
+    $('c-showMargin').checked = false;
+    refreshCostReview();
     docEl.textContent = '';
     emptyState.hidden = false;
     $('rawCount').textContent = '0 lines';

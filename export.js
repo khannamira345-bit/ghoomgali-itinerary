@@ -443,12 +443,16 @@ css + '\n</style>\n</head>\n<body>\n' +
           run(inr(amount), { font: F.mono, size: 10.5, b: !!hi, color: hi ? C.canopy : C.abyss })
         ], { after: 70, shade: hi ? C.lightMint : null }));
       }
-      line('Total activity cost', p.activityTotal);
-      line('Total accommodation cost', p.hotelTotal);
-      line('Total base cost', p.baseCost, true);
-      p.extras.forEach(function (e) { line(e.label, e.amount); });
-      line('Margin', p.margin);
-      line('Subtotal', p.subtotal, true);
+      if (m.showMargin) {
+        line('Total activity cost', p.activityTotal);
+        line('Total accommodation cost', p.hotelTotal);
+        line('Total base cost', p.baseCost, true);
+        p.extras.forEach(function (e) { line(e.label, e.amount); });
+        line('Margin', p.margin);
+        line('Subtotal', p.subtotal, true);
+      } else {
+        line('Total package cost', p.subtotal, true);
+      }
 
       if (p.gst || p.tcs) {
         body.push(para(run('TAXES & CHARGES', { font: F.mono, size: 8.5, color: C.chai, spacing: 50 }),

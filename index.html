@@ -97,6 +97,37 @@
       </div>
 
       <div class="field-group">
+        <h2 class="group-title">Costing</h2>
+        <p class="group-hint">
+          Check the numbers here before you download. Margin stays on this screen —
+          it is not printed on the traveller's PDF unless you tick the box below.
+        </p>
+        <div class="grid-3">
+          <label class="field">
+            <span>Margin <em>₹</em></span>
+            <input type="number" id="c-margin" min="0" step="500" placeholder="45000">
+          </label>
+          <label class="field">
+            <span>GST <em>%</em></span>
+            <input type="number" id="c-gst" min="0" max="100" step="0.5" placeholder="5">
+          </label>
+          <label class="field">
+            <span>TCS <em>%</em></span>
+            <input type="number" id="c-tcs" min="0" max="100" step="0.5" placeholder="2">
+          </label>
+        </div>
+
+        <dl class="cost-review" id="costReview">
+          <div class="cost-empty">Generate an itinerary to see the costing.</div>
+        </dl>
+
+        <label class="check">
+          <input type="checkbox" id="c-showMargin">
+          <span>Show margin and base cost on the PDF <em>internal copy</em></span>
+        </label>
+      </div>
+
+      <div class="field-group">
         <h2 class="group-title">Paste the plan</h2>
         <p class="group-hint">
           Paste raw notes exactly as you have them — WhatsApp messages, an email, rough bullets.

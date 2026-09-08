@@ -383,22 +383,32 @@
       container.appendChild(r);
     }
 
+    /* Two versions of the same page. The internal copy shows the full build-up
+       including margin; the traveller's copy shows one package price, so the
+       agency's margin is never exposed and the arithmetic still reads true. */
     var span = model.days.length ? ' (Days 1–' + model.days.length + ')' : '';
-    if (p.activityTotal) row(rows, 'Total activity cost' + span, p.activityTotal);
-    if (p.hotelTotal) row(rows, 'Total accommodation cost (' + model.hotels.length + ' hotels)', p.hotelTotal);
-    if (p.activityTotal && p.hotelTotal) row(rows, 'Total base cost', p.baseCost, true);
-    p.extras.forEach(function (e) { row(rows, e.label, e.amount); });
-    if (p.margin) row(rows, 'Margin', p.margin);
-    if (p.margin || p.extrasTotal) row(rows, 'Subtotal', p.subtotal, true);
+    if (m.showMargin) {
+      if (p.activityTotal) row(rows, 'Total activity cost' + span, p.activityTotal);
+      if (p.hotelTotal) row(rows, 'Total accommodation cost (' + model.hotels.length + ' hotels)', p.hotelTotal);
+      if (p.activityTotal && p.hotelTotal) row(rows, 'Total base cost', p.baseCost, true);
+      p.extras.forEach(function (e) { row(rows, e.label, e.amount); });
+      if (p.margin) row(rows, 'Margin', p.margin);
+      if (p.margin || p.extrasTotal) row(rows, 'Subtotal', p.subtotal, true);
+    } else {
+      row(rows, 'Total package cost' + span, p.subtotal, true);
+    }
     blocks.push({ node: rows });
 
     // GST and TCS get their own clearly separated block rather than blending
     // into the cost-breakdown list above.
     if (p.gst || p.tcs) {
+      // The client copy has no "Subtotal" line, so the tax basis is named
+      // after the line that is actually on the page.
+      var basis = m.showMargin ? 'subtotal' : 'package cost';
       blocks.push({ node: el('h3', 'sub-title', 'Taxes & charges') });
       var taxRows = el('div', 'tax-rows');
-      if (p.gst) row(taxRows, 'GST (' + p.gstPct + '% of subtotal)', p.gst);
-      if (p.tcs) row(taxRows, 'TCS (' + p.tcsPct + '% of subtotal)', p.tcs);
+      if (p.gst) row(taxRows, 'GST (' + p.gstPct + '% of ' + basis + ')', p.gst);
+      if (p.tcs) row(taxRows, 'TCS (' + p.tcsPct + '% of ' + basis + ')', p.tcs);
       blocks.push({ node: taxRows });
     }
 
