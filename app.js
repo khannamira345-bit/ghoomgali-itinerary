@@ -20,7 +20,28 @@
 
   var ZOOMS = ['fit', 0.5, 0.75, 1, 1.25, 1.5];
 
-  var state = { model: null, zoom: 0, photoPath: null, activeCard: null };
+  var state = {
+    model: null, zoom: 0, photoPath: null, activeCard: null,
+    library: {}, libDest: null, libCat: 'hotel', libDay: 0
+  };
+
+  /* Used by the activity library: a blank model to click items into when
+     nothing has been pasted or generated yet. Same defaults as an empty
+     paste, so everything downstream (rendering, costing, export) just works. */
+  function ensureModel() {
+    if (state.model) return state.model;
+    var model = window.GGParser.parse('');
+    var fields = readFields();
+    FIELDS.forEach(function (k) { if (fields[k]) model.meta[k] = fields[k]; });
+    var themeChoice = $('f-theme').value;
+    if (themeChoice) model.meta.theme = themeChoice;
+    var layoutChoice = $('f-layout').value;
+    if (layoutChoice) model.meta.layout = layoutChoice;
+    window.GGParser.recompute(model);
+    state.model = model;
+    emptyState.hidden = true;
+    return model;
+  }
 
   /* ---- paths ------------------------------------------------------------ */
 
@@ -107,6 +128,7 @@
       rerender();
       writeCostInputs();
       refreshCostReview();
+      renderLibraryUI();
       return true;
     }
     return false;
@@ -141,6 +163,8 @@
     writeFields(model.meta);
     writeCostInputs();
     refreshCostReview();
+    state.libDay = 0;
+    renderLibraryUI();
     save();
 
     if (!model.days.length) {
@@ -441,6 +465,8 @@
       rerender();
       writeCostInputs();
       refreshCostReview();
+      state.libDay = 0;
+      renderLibraryUI();
       save();
       toast('Project loaded — ' + model.days.length + ' days.');
     } catch (err) {
@@ -579,6 +605,229 @@
     });
   }
 
+  /* ---- activity library ---------------------------------------------------
+     Built from an imported Excel cost sheet (one worksheet per destination),
+     and stored in its own localStorage key so it survives across trips - a
+     reusable inventory, the way the client described it as a "database". */
+
+  function renderLibraryUI() {
+    var destRow = $('libDestRow');
+    var body = $('libBody');
+    var empty = $('libEmpty');
+    var dests = Object.keys(state.library);
+
+    if (!dests.length) {
+      destRow.hidden = true;
+      body.hidden = true;
+      empty.hidden = false;
+      return;
+    }
+    empty.hidden = true;
+    destRow.hidden = false;
+    body.hidden = false;
+
+    if (!state.libDest || dests.indexOf(state.libDest) === -1) state.libDest = dests[0];
+
+    destRow.textContent = '';
+    dests.forEach(function (d) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'lib-dest' + (d === state.libDest ? ' active' : '');
+      b.textContent = d;
+      b.dataset.dest = d;
+      destRow.appendChild(b);
+    });
+
+    var items = state.library[state.libDest] || [];
+    Array.prototype.slice.call(document.querySelectorAll('#libCatTabs .lib-tab')).forEach(function (t) {
+      var cat = t.dataset.cat;
+      var n = items.filter(function (it) { return it.category === cat; }).length;
+      t.classList.toggle('active', cat === state.libCat);
+      var badge = t.querySelector('.lib-tab-n');
+      if (!badge) {
+        badge = document.createElement('span');
+        badge.className = 'lib-tab-n';
+        t.appendChild(badge);
+      }
+      badge.textContent = n ? '(' + n + ')' : '';
+    });
+
+    var dayCount = state.model ? state.model.days.length : 0;
+    if (state.libDay >= dayCount) state.libDay = Math.max(0, dayCount - 1);
+
+    var daysWrap = $('libDays');
+    daysWrap.textContent = '';
+    for (var i = 0; i < dayCount; i++) {
+      var chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'lib-day-chip' + (i === state.libDay ? ' active' : '');
+      chip.textContent = 'Day ' + (i + 1);
+      chip.dataset.day = i;
+      daysWrap.appendChild(chip);
+    }
+    var addChip = document.createElement('button');
+    addChip.type = 'button';
+    addChip.className = 'lib-day-add';
+    addChip.textContent = '+ Day';
+    daysWrap.appendChild(addChip);
+
+    var wrap = $('libItems');
+    wrap.textContent = '';
+    var shown = items.filter(function (it) { return it.category === state.libCat; });
+    if (!shown.length) {
+      var e = document.createElement('div');
+      e.className = 'lib-empty';
+      e.style.marginTop = '0';
+      e.textContent = 'No ' + (window.GGLibrary.CAT_LABEL[state.libCat] || '').toLowerCase() + ' in this destination yet.';
+      wrap.appendChild(e);
+      return;
+    }
+    shown.forEach(function (it, idx) {
+      var row = document.createElement('div');
+      row.className = 'lib-item';
+      var b = document.createElement('div');
+      b.className = 'lib-item-body';
+      var name = document.createElement('div');
+      name.className = 'lib-item-name';
+      name.textContent = it.name;
+      b.appendChild(name);
+      if (it.description) {
+        var meta = document.createElement('div');
+        meta.className = 'lib-item-meta';
+        meta.textContent = it.description;
+        b.appendChild(meta);
+      }
+      if (it.price != null) {
+        var price = document.createElement('div');
+        price.className = 'lib-item-price';
+        price.textContent = window.GGParser.money(it.price, 'INR');
+        b.appendChild(price);
+      }
+      row.appendChild(b);
+
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'lib-item-add';
+      btn.textContent = '+';
+      btn.dataset.itemIndex = idx;
+      if (it.category === 'hotel') {
+        btn.title = 'Add to accommodation';
+      } else if (dayCount === 0) {
+        btn.title = 'Add a day first';
+        btn.disabled = true;
+      } else {
+        btn.title = 'Add to Day ' + (state.libDay + 1);
+      }
+      row.appendChild(btn);
+      wrap.appendChild(row);
+    });
+  }
+
+  function addLibraryItem(item) {
+    var model = ensureModel();
+    if (item.category === 'hotel') {
+      model.hotels.push({
+        city: state.libDest || '', name: item.name, dates: '', nights: '',
+        meta: item.meta || '', price: item.price,
+        bullets: item.description ? [item.description] : [],
+        badge: '', image: item.image || ''
+      });
+    } else {
+      while (model.days.length <= state.libDay) {
+        var n = model.days.length + 1;
+        model.days.push({ n: n, when: '', title: 'Day ' + n, image: '', items: [], total: null });
+      }
+      model.days[state.libDay].items.push({
+        eyebrow: window.GGLibrary.CAT_LABEL[item.category] || '',
+        title: item.name, detail: item.description, bullets: [], note: item.notes || '',
+        price: item.price, image: item.image || '',
+        part: window.GGParser.inferPart(item.name + ' ' + item.description) || 'morning'
+      });
+    }
+    window.GGParser.recompute(model);
+    rerender();
+    writeCostInputs();
+    refreshCostReview();
+    renderLibraryUI();
+    save();
+    toast(item.category === 'hotel'
+      ? item.name + ' added as a stay.'
+      : item.name + ' added to Day ' + (state.libDay + 1) + '.');
+  }
+
+  $('btnImportExcel').addEventListener('click', function () {
+    $('fileExcel').value = '';
+    $('fileExcel').click();
+  });
+
+  $('btnLibTemplate').addEventListener('click', function () {
+    window.GGLibrary.downloadTemplate();
+  });
+
+  $('fileExcel').addEventListener('change', function () {
+    var f = $('fileExcel').files && $('fileExcel').files[0];
+    if (!f) return;
+    $('libStatus').textContent = 'Reading…';
+    window.GGLibrary.readWorkbookFile(f).then(function (incoming) {
+      var destCount = Object.keys(incoming).length;
+      $('libStatus').textContent = '';
+      if (!destCount) {
+        toast('No usable rows found — each row needs at least a Name. Try the template.', true);
+        return;
+      }
+      state.library = window.GGLibrary.mergeLibrary(state.library, incoming);
+      window.GGLibrary.saveLibrary(state.library);
+      state.libDest = Object.keys(incoming)[0];
+      renderLibraryUI();
+      var itemCount = Object.keys(incoming).reduce(function (a, d) { return a + incoming[d].length; }, 0);
+      toast('Imported ' + itemCount + ' item' + (itemCount === 1 ? '' : 's') +
+            ' across ' + destCount + ' destination' + (destCount === 1 ? '' : 's') + '.');
+    }).catch(function () {
+      $('libStatus').textContent = '';
+      toast('Could not read that file — is it a .xlsx or .csv?', true);
+    });
+  });
+
+  $('libDestRow').addEventListener('click', function (e) {
+    var b = e.target.closest('.lib-dest');
+    if (!b) return;
+    state.libDest = b.dataset.dest;
+    renderLibraryUI();
+  });
+
+  $('libCatTabs').addEventListener('click', function (e) {
+    var b = e.target.closest('.lib-tab');
+    if (!b) return;
+    state.libCat = b.dataset.cat;
+    renderLibraryUI();
+  });
+
+  $('libDays').addEventListener('click', function (e) {
+    if (e.target.closest('.lib-day-add')) {
+      var model = ensureModel();
+      var n = model.days.length + 1;
+      model.days.push({ n: n, when: '', title: 'Day ' + n, image: '', items: [], total: null });
+      state.libDay = model.days.length - 1;
+      window.GGParser.recompute(model);
+      rerender();
+      renderLibraryUI();
+      save();
+      return;
+    }
+    var chip = e.target.closest('.lib-day-chip');
+    if (!chip) return;
+    state.libDay = +chip.dataset.day;
+    renderLibraryUI();
+  });
+
+  $('libItems').addEventListener('click', function (e) {
+    var btn = e.target.closest('.lib-item-add');
+    if (!btn || btn.disabled) return;
+    var items = (state.library[state.libDest] || []).filter(function (it) { return it.category === state.libCat; });
+    var item = items[+btn.dataset.itemIndex];
+    if (item) addLibraryItem(item);
+  });
+
   /* ---- form and misc ---------------------------------------------------- */
 
   FIELDS.forEach(function (k) {
@@ -622,6 +871,10 @@
     ['c-margin', 'c-gst', 'c-tcs', 'c-discount'].forEach(function (id) { $(id).value = ''; });
     $('c-showMargin').checked = false;
     refreshCostReview();
+    // The library itself is reusable inventory, not part of one trip - it
+    // is deliberately not cleared here.
+    state.libDay = 0;
+    renderLibraryUI();
     docEl.textContent = '';
     emptyState.hidden = false;
     $('rawCount').textContent = '0 lines';
@@ -787,8 +1040,11 @@
     }));
   }
 
+  state.library = window.GGLibrary.loadLibrary();
+
   preloadLogos().then(function () {
     if (!restore()) { emptyState.hidden = false; syncThemeSwatchUI(); syncLayoutPickerUI(); }
+    renderLibraryUI();
     $('raw').dispatchEvent(new Event('input'));
   });
 })();

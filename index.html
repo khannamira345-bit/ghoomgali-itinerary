@@ -48,6 +48,41 @@
       </div>
 
       <div class="field-group">
+        <h2 class="group-title">Activity library</h2>
+        <p class="group-hint">
+          An alternative to pasting text — import an Excel cost sheet, one worksheet per
+          destination, then click items into each day. Use it alone, or alongside pasted notes.
+        </p>
+
+        <div class="lib-toolbar">
+          <button type="button" class="btn-outline btn-sm" id="btnImportExcel">Import Excel</button>
+          <button type="button" class="btn-link" id="btnLibTemplate">Download template</button>
+          <span class="lib-status" id="libStatus"></span>
+        </div>
+        <input type="file" id="fileExcel" accept=".xlsx,.xls,.csv" hidden>
+
+        <div class="lib-dest-row" id="libDestRow" hidden></div>
+
+        <div class="lib-body" id="libBody" hidden>
+          <div class="lib-cat-tabs" id="libCatTabs">
+            <button type="button" class="lib-tab active" data-cat="hotel">Hotels</button>
+            <button type="button" class="lib-tab" data-cat="transfer">Transfers</button>
+            <button type="button" class="lib-tab" data-cat="activity">Activities</button>
+            <button type="button" class="lib-tab" data-cat="visa">Visa</button>
+          </div>
+
+          <div class="lib-day-target">
+            <span class="lib-day-label">Adding to</span>
+            <div class="lib-days" id="libDays"></div>
+          </div>
+
+          <div class="lib-items" id="libItems"></div>
+        </div>
+
+        <div class="lib-empty" id="libEmpty">Import an Excel cost sheet to build your library — or click "Download template" to see the exact format.</div>
+      </div>
+
+      <div class="field-group">
         <h2 class="group-title">Trip details</h2>
         <p class="group-hint">These appear on the cover and overview pages. Leave any blank to hide it.</p>
         <div class="grid-2">
@@ -271,10 +306,12 @@ Check in at Wildflower Hall
 <script src="vendor/html2canvas.min.js"></script>
 <script src="vendor/jspdf.umd.min.js"></script>
 <script src="vendor/jszip.min.js"></script>
+<script src="vendor/xlsx.full.min.js"></script>
 <script src="brand.js"></script>
 <script src="parser.js"></script>
 <script src="render.js"></script>
 <script src="export.js"></script>
+<script src="library.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

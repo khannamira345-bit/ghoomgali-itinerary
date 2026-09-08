@@ -173,6 +173,74 @@ button{font-family:inherit; cursor:pointer}
   text-transform:uppercase; color:var(--chai); margin-left:5px;
 }
 
+/* Activity library ---------------------------------------------------------- */
+.lib-toolbar{display:flex; align-items:center; gap:12px; flex-wrap:wrap}
+.lib-status{font-family:var(--mono); font-size:10px; color:var(--mint)}
+
+.lib-empty{
+  margin-top:14px; padding:16px; border:1px dashed var(--line); border-radius:9px;
+  font-size:12px; color:var(--muted); font-style:italic; text-align:center; line-height:1.6;
+}
+
+.lib-dest-row{display:flex; gap:6px; flex-wrap:wrap; margin-top:14px}
+.lib-dest{
+  font-family:var(--mono); font-size:10px; letter-spacing:.04em;
+  padding:6px 12px; border-radius:999px; border:1px solid var(--line); background:#fff;
+  color:var(--muted); cursor:pointer; transition:.14s;
+}
+.lib-dest:hover{border-color:rgba(65,191,143,.5)}
+.lib-dest.active{background:var(--abyss); border-color:var(--abyss); color:var(--paper)}
+
+.lib-body{margin-top:12px}
+.lib-cat-tabs{display:flex; gap:4px; border-bottom:1px solid var(--line); margin-bottom:12px}
+.lib-tab{
+  font-size:12px; font-weight:600; color:var(--muted);
+  padding:8px 4px; margin-right:14px; border-bottom:2px solid transparent; background:none;
+}
+.lib-tab.active{color:var(--canopy); border-bottom-color:var(--mint)}
+.lib-tab .lib-tab-n{
+  font-family:var(--mono); font-size:9.5px; color:var(--chai); margin-left:3px;
+}
+
+.lib-day-target{display:flex; align-items:center; gap:9px; flex-wrap:wrap; margin-bottom:12px}
+.lib-day-label{
+  font-family:var(--mono); font-size:9.5px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--muted);
+}
+.lib-days{display:flex; gap:5px; flex-wrap:wrap}
+.lib-day-chip{
+  font-family:var(--mono); font-size:10.5px; padding:5px 11px; border-radius:999px;
+  border:1px solid var(--line); background:#fff; color:var(--muted); cursor:pointer; transition:.14s;
+}
+.lib-day-chip:hover{border-color:rgba(65,191,143,.5)}
+.lib-day-chip.active{background:var(--mint); border-color:var(--mint); color:#fff; font-weight:700}
+.lib-day-add{
+  font-family:var(--mono); font-size:10.5px; padding:5px 11px; border-radius:999px;
+  border:1px dashed var(--line); background:none; color:var(--chai); cursor:pointer;
+}
+.lib-day-add:hover{border-color:var(--chai); background:var(--light-mint)}
+
+.lib-items{max-height:340px; overflow-y:auto; display:flex; flex-direction:column; gap:7px}
+.lib-item{
+  display:flex; align-items:flex-start; gap:10px; padding:10px 12px;
+  border:1px solid var(--line); border-radius:8px; background:#fff; transition:.14s;
+}
+.lib-item:hover{border-color:rgba(65,191,143,.45)}
+.lib-item-body{flex:1; min-width:0}
+.lib-item-name{font-size:12.5px; font-weight:600; color:var(--ink); line-height:1.35}
+.lib-item-meta{font-size:11px; color:var(--muted); margin-top:2px; line-height:1.4}
+.lib-item-price{
+  font-family:var(--mono); font-size:10.5px; color:var(--canopy); margin-top:4px;
+}
+.lib-item-add{
+  flex:none; width:26px; height:26px; border-radius:7px; border:1px solid var(--line);
+  background:var(--light-mint); color:var(--canopy); font-size:15px; line-height:1;
+  cursor:pointer; transition:.14s;
+}
+.lib-item-add:hover{background:var(--mint); border-color:var(--mint); color:#fff}
+.lib-item-add:disabled{opacity:.4; cursor:not-allowed}
+.lib-item.added{border-color:rgba(65,191,143,.6); background:var(--light-mint)}
+
 /* Layout picker ----------------------------------------------------------- */
 .layout-picker{display:grid; grid-template-columns:1fr 1fr; gap:9px}
 .layout-opt{
