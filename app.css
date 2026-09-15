@@ -50,15 +50,16 @@ button{font-family:inherit; cursor:pointer}
    themselves are the very same DOM nodes used in the sidebar afterwards -
    moved in by JS, then moved back on Generate - so there is exactly one
    copy of every input's state, never two to keep in sync. */
+/* A genuine full page, not a card floating on a backdrop: the same white
+   the rest of the tool uses, filling the full viewport, with just a
+   centered column so the form itself stays a readable width. */
 .onboarding{
-  min-height:calc(100vh - var(--topbar-h)); background:var(--gray-100);
+  min-height:calc(100vh - var(--topbar-h)); background:var(--white);
   display:flex; align-items:flex-start; justify-content:center;
-  padding:56px 20px 80px; overflow-y:auto;
+  padding:64px 24px 100px; overflow-y:auto;
 }
 .onboard-card{
-  width:100%; max-width:640px; background:var(--white); border-radius:20px;
-  box-shadow:0 1px 3px rgba(0,0,0,.06), 0 24px 60px rgba(0,0,0,.08);
-  padding:44px 48px 40px; position:relative;
+  width:100%; max-width:640px; position:relative;
 }
 .onboard-progress{display:flex; justify-content:center; gap:7px; margin-bottom:32px}
 .onboard-dot{width:7px; height:7px; border-radius:50%; background:var(--gray-300); transition:.2s}
@@ -91,8 +92,7 @@ button{font-family:inherit; cursor:pointer}
 .btn-onboard{width:auto; padding:13px 30px}
 
 @media (max-width:600px){
-  .onboarding{padding:32px 14px 60px}
-  .onboard-card{padding:32px 22px 28px; border-radius:16px}
+  .onboarding{padding:36px 20px 60px}
   .onboard-head h1{font-size:22px}
 }
 
