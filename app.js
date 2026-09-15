@@ -173,7 +173,9 @@
     }
     toast('Built — ' + model.days.length + ' days, ' +
           docEl.querySelectorAll('.page').length + ' pages. Click any text to edit, or a photo slot to fill it.');
-    showPreviewOnMobile();
+    // Deferred a tick so the switch always lands after this render has fully
+    // settled, rather than racing it.
+    setTimeout(showPreviewOnMobile, 0);
   }
 
   /* A re-generate must not wipe photos the client already placed. */
@@ -470,7 +472,7 @@
       renderLibraryUI();
       save();
       toast('Project loaded — ' + model.days.length + ' days.');
-      showPreviewOnMobile();
+      setTimeout(showPreviewOnMobile, 0);
     } catch (err) {
       toast(err.message, true);
     }
