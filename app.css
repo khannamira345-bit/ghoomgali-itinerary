@@ -14,13 +14,15 @@
   --ink:var(--black); --muted:var(--gray-500); --line:var(--gray-300);
   --surface:var(--gray-100);
 
-  /* A single restrained accent, used only for semantic state - success and
-     warning - never for decoration. Everything interactive is black/grey. */
-  --ok:#1f8a4c; --warn:#c9820b;
+  /* Ghoom Gali Mint stands in for "blue" - the one accent every interactive
+     control uses (buttons, active tabs, focus rings, success). Everything
+     else - text, cards, backgrounds - stays black / white / grey. */
+  --accent:#41BF8F; --accent-dark:#2FA374; --accent-tint:#EAF7F1;
+  --warn:#C4855A;
 
   --font:-apple-system,BlinkMacSystemFont,'SF Pro Display','SF Pro Text','Helvetica Neue',Helvetica,Arial,sans-serif;
 
-  --topbar-h:56px; --bar-h:56px;
+  --topbar-h:56px; --bar-h:56px; --mobiletabs-h:46px;
 }
 
 *{box-sizing:border-box}
@@ -54,14 +56,14 @@ button{font-family:inherit; cursor:pointer}
   opacity:0; transition:opacity .3s; display:flex; align-items:center; gap:6px;
 }
 .save-state::before{
-  content:""; width:5px; height:5px; border-radius:50%; background:#30d158; flex:none;
+  content:""; width:5px; height:5px; border-radius:50%; background:var(--accent); flex:none;
 }
 .save-state.on{opacity:1}
 .btn-ghost{
   background:transparent; border:1px solid rgba(255,255,255,.22); color:var(--white);
   font-size:12.5px; font-weight:500; padding:7px 14px; border-radius:999px; transition:.15s;
 }
-.btn-ghost:hover{background:rgba(255,255,255,.1); border-color:rgba(255,255,255,.32)}
+.btn-ghost:hover{background:rgba(255,255,255,.1); border-color:rgba(65,191,143,.6)}
 
 /* Split layout ------------------------------------------------------------ */
 .split{
@@ -103,7 +105,7 @@ button{font-family:inherit; cursor:pointer}
   padding:10px 12px; border:1px solid var(--gray-300); border-radius:9px;
   background:var(--white); transition:.15s; width:100%;
 }
-.field input:focus{outline:none; border-color:var(--black); box-shadow:0 0 0 3px rgba(0,0,0,.06)}
+.field input:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(65,191,143,.16)}
 .field input::placeholder{color:var(--gray-500)}
 
 #raw{
@@ -112,7 +114,7 @@ button{font-family:inherit; cursor:pointer}
   padding:14px; border:1px solid var(--gray-300); border-radius:10px; background:var(--gray-50);
   transition:.15s;
 }
-#raw:focus{outline:none; border-color:var(--black); box-shadow:0 0 0 3px rgba(0,0,0,.06); background:var(--white)}
+#raw:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(65,191,143,.16); background:var(--white)}
 #raw::placeholder{color:var(--gray-500)}
 
 .raw-actions{display:flex; align-items:center; justify-content:space-between; margin:9px 0 16px}
@@ -121,16 +123,16 @@ button{font-family:inherit; cursor:pointer}
   font-size:12.5px; font-weight:500; text-decoration:underline; text-underline-offset:3px;
   text-decoration-color:var(--gray-300);
 }
-.btn-link:hover{text-decoration-color:var(--black)}
+.btn-link:hover{text-decoration-color:var(--accent)}
 .counter{font-size:11.5px; color:var(--muted)}
 
 /* Buttons ------------------------------------------------------------- */
 .btn-primary{
-  width:100%; background:var(--black); color:var(--white); border:1px solid var(--black);
+  width:100%; background:var(--accent); color:var(--white); border:1px solid var(--accent);
   font-size:14.5px; font-weight:590; letter-spacing:-.005em;
   padding:14px 18px; border-radius:999px; transition:.15s;
 }
-.btn-primary:hover{background:#000; border-color:#000}
+.btn-primary:hover{background:var(--accent-dark); border-color:var(--accent-dark)}
 .btn-primary:active{transform:scale(.985)}
 .btn-primary:disabled{opacity:.35; cursor:not-allowed}
 .btn-sm{width:auto; font-size:13px; padding:8px 16px; font-weight:590}
@@ -138,7 +140,7 @@ button{font-family:inherit; cursor:pointer}
   background:var(--white); color:var(--black); border:1px solid var(--gray-300);
   border-radius:999px; transition:.15s; font-weight:590;
 }
-.btn-outline:hover{border-color:var(--black); background:var(--gray-50)}
+.btn-outline:hover{border-color:var(--accent); background:var(--accent-tint)}
 
 /* Costing panel --------------------------------------------------------- */
 .grid-3{display:grid; grid-template-columns:repeat(3,1fr); gap:10px}
@@ -164,7 +166,7 @@ button{font-family:inherit; cursor:pointer}
 .cost-review .row--grand dt{font-weight:700; color:var(--black)}
 .cost-review .row--grand dd{font-size:14.5px; font-weight:700; color:var(--black)}
 .cost-review .row--discount dt{color:var(--ink)}
-.cost-review .row--discount dd{color:var(--ok); font-weight:600}
+.cost-review .row--discount dd{color:var(--accent-dark); font-weight:600}
 .cost-review .row--margin dt::after{
   content:'internal'; margin-left:7px; font-size:9.5px; font-weight:500;
   color:var(--gray-500); background:var(--gray-200); border-radius:4px; padding:1px 6px;
@@ -172,7 +174,7 @@ button{font-family:inherit; cursor:pointer}
 .cost-empty{padding:12px 0; font-size:12.5px; color:var(--muted)}
 
 .check{display:flex; align-items:flex-start; gap:9px; margin-top:16px; cursor:pointer}
-.check input{margin:2px 0 0; accent-color:var(--black); flex:none}
+.check input{margin:2px 0 0; accent-color:var(--accent); flex:none}
 .check span{font-size:12.5px; color:var(--muted); line-height:1.5}
 .check em{
   font-style:normal; font-size:9.5px; font-weight:500; color:var(--gray-500);
@@ -181,7 +183,7 @@ button{font-family:inherit; cursor:pointer}
 
 /* Activity library -------------------------------------------------------- */
 .lib-toolbar{display:flex; align-items:center; gap:12px; flex-wrap:wrap}
-.lib-status{font-size:11.5px; color:var(--ok)}
+.lib-status{font-size:11.5px; color:var(--accent-dark)}
 
 .lib-empty{
   margin-top:14px; padding:18px; border:1px dashed var(--gray-300); border-radius:10px;
@@ -194,8 +196,8 @@ button{font-family:inherit; cursor:pointer}
   padding:7px 13px; border-radius:999px; border:1px solid var(--gray-300); background:var(--white);
   color:var(--gray-700); cursor:pointer; transition:.14s;
 }
-.lib-dest:hover{border-color:var(--black)}
-.lib-dest.active{background:var(--black); border-color:var(--black); color:var(--white)}
+.lib-dest:hover{border-color:var(--accent)}
+.lib-dest.active{background:var(--accent); border-color:var(--accent); color:var(--white)}
 
 .lib-body{margin-top:14px}
 .lib-cat-tabs{display:flex; gap:4px; border-bottom:1px solid var(--gray-200); margin-bottom:14px}
@@ -203,44 +205,72 @@ button{font-family:inherit; cursor:pointer}
   font-size:12.5px; font-weight:500; color:var(--muted);
   padding:8px 4px; margin-right:16px; border-bottom:2px solid transparent; background:none;
 }
-.lib-tab.active{color:var(--black); font-weight:600; border-bottom-color:var(--black)}
+.lib-tab.active{color:var(--accent-dark); font-weight:600; border-bottom-color:var(--accent)}
 .lib-tab .lib-tab-n{font-size:11px; color:var(--gray-500); margin-left:3px; font-weight:400}
 
-.lib-day-target{display:flex; align-items:center; gap:9px; flex-wrap:wrap; margin-bottom:14px}
+.lib-day-target{display:flex; align-items:center; gap:9px; flex-wrap:wrap; margin-bottom:12px}
 .lib-day-label{font-size:11.5px; font-weight:500; color:var(--muted)}
 .lib-days{display:flex; gap:5px; flex-wrap:wrap}
 .lib-day-chip{
   font-size:12px; font-weight:500; padding:6px 12px; border-radius:999px;
   border:1px solid var(--gray-300); background:var(--white); color:var(--gray-700); cursor:pointer; transition:.14s;
 }
-.lib-day-chip:hover{border-color:var(--black)}
-.lib-day-chip.active{background:var(--black); border-color:var(--black); color:var(--white); font-weight:600}
+.lib-day-chip:hover{border-color:var(--accent)}
+.lib-day-chip.active{background:var(--accent); border-color:var(--accent); color:var(--white); font-weight:600}
 .lib-day-add{
   font-size:12px; font-weight:500; padding:6px 12px; border-radius:999px;
   border:1px dashed var(--gray-300); background:none; color:var(--gray-700); cursor:pointer;
 }
-.lib-day-add:hover{border-color:var(--black); background:var(--gray-50); color:var(--black)}
+.lib-day-add:hover{border-color:var(--accent); background:var(--accent-tint); color:var(--accent-dark)}
+
+/* A compact route-style preview of what's already in the selected day -
+   dots on a connecting line, the same shape as the reference's route
+   screen, just drawn from the day being built rather than a finished trip. */
+.lib-day-plan{margin-bottom:12px}
+.lib-day-plan-empty{font-size:12px; color:var(--gray-500); padding:4px 0 10px}
+.lib-day-plan-row{position:relative; display:flex; align-items:flex-start; gap:10px; padding:0 0 12px 2px}
+.lib-day-plan-row::before{
+  content:""; position:absolute; left:4px; top:14px; bottom:-1px; width:1px; background:var(--gray-300);
+}
+.lib-day-plan-row:last-child::before{display:none}
+.lib-day-plan-dot{flex:none; width:9px; height:9px; margin-top:3px; border-radius:50%; background:var(--accent)}
+.lib-day-plan-body{flex:1; min-width:0}
+.lib-day-plan-name{font-size:12.5px; font-weight:600; color:var(--ink); line-height:1.4}
+.lib-day-plan-meta{font-size:11px; color:var(--muted); margin-top:1px}
+.lib-day-plan-price{
+  flex:none; font-size:11.5px; font-variant-numeric:tabular-nums; color:var(--gray-700); padding-top:1px;
+}
+.lib-day-plan-footer{
+  display:flex; align-items:baseline; justify-content:space-between; margin-top:2px; padding:10px 0 0 2px;
+  border-top:1px solid var(--gray-200); font-size:12px; color:var(--muted);
+}
+.lib-day-plan-footer b{color:var(--ink); font-weight:600; font-variant-numeric:tabular-nums}
 
 .lib-items{max-height:340px; overflow-y:auto; display:flex; flex-direction:column; gap:8px}
 .lib-item{
-  display:flex; align-items:flex-start; gap:10px; padding:11px 13px;
-  border:1px solid var(--gray-200); border-radius:9px; background:var(--white); transition:.14s;
+  display:flex; align-items:center; gap:11px; padding:10px 12px;
+  border:1px solid var(--gray-200); border-radius:11px; background:var(--white); transition:.14s;
 }
 .lib-item:hover{border-color:var(--gray-500)}
+.lib-item-thumb{
+  flex:none; width:42px; height:42px; border-radius:10px; overflow:hidden;
+  background-color:var(--gray-100); background-position:center; background-size:cover; background-repeat:no-repeat;
+  display:grid; place-items:center; color:var(--gray-500); font-size:14px; font-weight:600;
+}
 .lib-item-body{flex:1; min-width:0}
 .lib-item-name{font-size:13px; font-weight:600; color:var(--ink); line-height:1.35}
 .lib-item-meta{font-size:11.5px; color:var(--muted); margin-top:2px; line-height:1.4}
 .lib-item-price{
-  font-size:11.5px; font-variant-numeric:tabular-nums; color:var(--gray-700); margin-top:4px;
+  font-size:11.5px; font-variant-numeric:tabular-nums; color:var(--gray-700); margin-top:3px;
 }
 .lib-item-add{
-  flex:none; width:26px; height:26px; border-radius:7px; border:1px solid var(--gray-300);
-  background:var(--white); color:var(--black); font-size:15px; line-height:1;
-  cursor:pointer; transition:.14s;
+  flex:none; width:30px; height:30px; border-radius:50%; border:none;
+  background:var(--accent); color:var(--white); font-size:17px; line-height:1;
+  cursor:pointer; transition:.14s; display:grid; place-items:center;
 }
-.lib-item-add:hover{background:var(--black); border-color:var(--black); color:var(--white)}
-.lib-item-add:disabled{opacity:.35; cursor:not-allowed}
-.lib-item.added{border-color:var(--black)}
+.lib-item-add:hover{background:var(--accent-dark)}
+.lib-item-add:disabled{background:var(--gray-300); color:var(--gray-500); cursor:not-allowed}
+.lib-item.added{border-color:var(--accent)}
 
 /* Layout picker ------------------------------------------------------------ */
 .layout-picker{display:grid; grid-template-columns:1fr 1fr; gap:9px}
@@ -250,9 +280,9 @@ button{font-family:inherit; cursor:pointer}
 }
 .layout-opt b{display:block; font-size:12.5px; font-weight:600; color:var(--ink)}
 .layout-opt em{display:block; font-style:normal; font-size:11px; color:var(--muted); margin-top:3px; line-height:1.4}
-.layout-opt:hover{border-color:var(--black)}
-.layout-opt.active{border-color:var(--black); background:var(--gray-50)}
-.layout-opt.active b{color:var(--black)}
+.layout-opt:hover{border-color:var(--accent)}
+.layout-opt.active{border-color:var(--accent); background:var(--accent-tint)}
+.layout-opt.active b{color:var(--accent-dark)}
 
 /* Theme picker ---------------------------------------------------------- */
 .theme-picker{display:flex; align-items:center; gap:10px; margin-top:16px}
@@ -271,8 +301,8 @@ button{font-family:inherit; cursor:pointer}
 .swatch--mint{background:#41BF8F}
 .swatch--chai{background:#C4855A}
 .swatch--lantern{background:#E7C547}
-.swatch.active{border-color:var(--black)}
-.swatch--auto.active{border-color:var(--black); color:var(--black); font-weight:600}
+.swatch.active{border-color:var(--accent-dark)}
+.swatch--auto.active{border-color:var(--accent); color:var(--accent-dark); font-weight:600}
 .swatch:hover{transform:scale(1.1)}
 .theme-hint{margin-top:8px}
 
@@ -282,7 +312,7 @@ button{font-family:inherit; cursor:pointer}
   cursor:pointer; font-size:12.5px; font-weight:500; color:var(--gray-700); list-style:none;
 }
 .tips summary::-webkit-details-marker{display:none}
-.tips summary::before{content:"+ "; color:var(--gray-500)}
+.tips summary::before{content:"+ "; color:var(--accent-dark)}
 .tips[open] summary::before{content:"– "}
 .tips ul{margin:12px 0 8px; padding-left:18px; font-size:12.5px; color:var(--muted); line-height:1.8}
 .tips li b{color:var(--ink); font-weight:600}
@@ -310,7 +340,7 @@ button{font-family:inherit; cursor:pointer}
   width:26px; height:26px; border:1px solid var(--gray-300); background:var(--white);
   border-radius:7px; color:var(--gray-700); font-size:15px; line-height:1;
 }
-.zoom button:hover{border-color:var(--black); color:var(--black)}
+.zoom button:hover{border-color:var(--accent); color:var(--accent-dark)}
 #zoomLabel{font-size:11.5px; color:var(--muted); width:36px; text-align:center}
 
 /* Dropdown ------------------------------------------------------------ */
@@ -324,7 +354,7 @@ button{font-family:inherit; cursor:pointer}
   display:block; width:100%; text-align:left; background:none; border:none;
   padding:10px 12px; border-radius:9px; transition:.14s;
 }
-.dropdown-menu button:hover{background:var(--gray-100)}
+.dropdown-menu button:hover{background:var(--accent-tint)}
 .dropdown-menu b{display:block; font-size:13px; font-weight:600; color:var(--ink)}
 .dropdown-menu em{display:block; font-style:normal; font-size:11.5px; color:var(--muted); margin-top:1px}
 .dropdown-menu hr{border:none; border-top:1px solid var(--gray-200); margin:6px 8px}
@@ -356,7 +386,7 @@ button{font-family:inherit; cursor:pointer}
   font-size:12px; font-weight:500;
   padding:6px 9px; border-radius:6px; transition:.14s;
 }
-.item-tools button:hover{background:rgba(255,255,255,.16); color:var(--white)}
+.item-tools button:hover{background:var(--accent); color:var(--white)}
 .item-tools button.danger:hover{background:#ff453a; color:#fff}
 
 /* Toast --------------------------------------------------------------- */
@@ -368,9 +398,9 @@ button{font-family:inherit; cursor:pointer}
 }
 .toast.on{opacity:1; transform:translate(-50%,0)}
 .toast::before{
-  content:""; width:7px; height:7px; border-radius:50%; background:#30d158; flex:none;
+  content:""; width:7px; height:7px; border-radius:50%; background:var(--accent); flex:none;
 }
-.toast.warn::before{background:#ff9f0a}
+.toast.warn::before{background:var(--warn)}
 
 /* Progress overlay ---------------------------------------------------- */
 .overlay{
@@ -387,15 +417,64 @@ button{font-family:inherit; cursor:pointer}
 .overlay-card p{margin:0; font-size:12.5px; color:var(--muted)}
 .spinner{
   width:32px; height:32px; margin:0 auto; border-radius:50%;
-  border:2.5px solid var(--gray-200); border-top-color:var(--black);
+  border:2.5px solid var(--gray-200); border-top-color:var(--accent);
   animation:spin .8s linear infinite;
 }
 @keyframes spin{to{transform:rotate(360deg)}}
 
-/* Narrow screens ------------------------------------------------------ */
+/* Mobile tabs ----------------------------------------------------------- */
+/* Hidden by default (desktop shows both panels side by side already). Below
+   the breakpoint the same two panels become two full-screen "screens", the
+   way the reference app moves from one screen to the next. */
+.mobile-tabs{display:none}
+.mobile-tab{
+  flex:1; padding:0; height:var(--mobiletabs-h); font-size:14px; font-weight:600;
+  color:var(--gray-500); background:none; border:none; border-bottom:2px solid transparent;
+}
+.mobile-tab.active{color:var(--black); border-bottom-color:var(--accent)}
+
+/* Deliberately NOT inside a width-based media query. PDF export renders each
+   page through html2canvas with an explicit internal width of 794px - under
+   the 960px breakpoint - so any hide-the-inactive-screen rule written as a
+   plain @media selector gets re-evaluated by that narrow internal context
+   too, and (since the desktop DOM never carries a "tab-preview" class) would
+   silently blank every exported page. Gating this purely on a JS-applied
+   class, set only when the real window is actually narrow, keeps the export
+   pass unaffected by its own internal viewport. */
+.mobile-panel-hidden{position:absolute; inset:0; visibility:hidden; pointer-events:none}
+
+/* Narrow screens --------------------------------------------------------- */
 @media (max-width:960px){
-  body{overflow:auto}
-  .split{grid-template-columns:1fr; height:auto}
-  .panel-input{border-right:none; border-bottom:1px solid var(--gray-200)}
-  .panel-preview{min-height:80vh}
+  .mobile-tabs{
+    display:flex; background:var(--white); border-bottom:1px solid var(--gray-200);
+    position:sticky; top:0; z-index:40;
+  }
+
+  .split{
+    position:relative; display:block; overflow:hidden;
+    height:calc(100vh - var(--topbar-h) - var(--mobiletabs-h));
+  }
+  .panel{height:100%}
+
+  .panel-input{border-right:none}
+  .panel-scroll{padding:22px 18px 100px}
+
+  /* The primary action stays reachable no matter how far the form has
+     scrolled - the same persistent bottom button the reference app uses. */
+  #btnGenerate{
+    position:fixed; left:16px; right:16px; bottom:16px; z-index:45;
+    box-shadow:0 10px 26px rgba(0,0,0,.2);
+  }
+
+  .preview-hint{display:none}
+  .preview-bar{padding:0 14px}
+  .preview-bar-right{gap:6px}
+  .preview-bar-left strong{font-size:12.5px}
+}
+
+@media (max-width:520px){
+  .grid-2, .grid-3, .layout-picker{grid-template-columns:1fr}
+  .field input, #raw{font-size:15px}
+  .btn-primary, .btn-outline, .btn-sm{min-height:40px}
+  .paper-scroll{padding:16px}
 }

@@ -21,7 +21,13 @@
   <button class="btn-ghost" id="btnReset" title="Clear everything and start a new itinerary">New itinerary</button>
 </header>
 
-<main class="split">
+<!-- Phone-width only: the two panels become two screens, like a native app. -->
+<nav class="mobile-tabs" id="mobileTabs">
+  <button type="button" class="mobile-tab active" data-tab="build">Build</button>
+  <button type="button" class="mobile-tab" data-tab="preview">Preview</button>
+</nav>
+
+<main class="split tab-build">
 
   <!-- ─────────────  LEFT: INPUT  ───────────── -->
   <section class="panel panel-input">
@@ -75,6 +81,8 @@
             <span class="lib-day-label">Adding to</span>
             <div class="lib-days" id="libDays"></div>
           </div>
+
+          <div class="lib-day-plan" id="libDayPlan"></div>
 
           <div class="lib-items" id="libItems"></div>
         </div>

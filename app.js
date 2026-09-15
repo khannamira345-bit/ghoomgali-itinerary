@@ -173,6 +173,7 @@
     }
     toast('Built — ' + model.days.length + ' days, ' +
           docEl.querySelectorAll('.page').length + ' pages. Click any text to edit, or a photo slot to fill it.');
+    showPreviewOnMobile();
   }
 
   /* A re-generate must not wipe photos the client already placed. */
@@ -469,6 +470,7 @@
       renderLibraryUI();
       save();
       toast('Project loaded — ' + model.days.length + ' days.');
+      showPreviewOnMobile();
     } catch (err) {
       toast(err.message, true);
     }
@@ -581,6 +583,58 @@
     });
   }
 
+  /* ---- mobile screens ----------------------------------------------------
+     Below the 960px breakpoint the two panels become two full-screen tabs,
+     like moving from one screen to the next in a native app. Above it the
+     classes are simply ignored, since app.css only reads them in that
+     media query - the desktop split view is untouched. */
+
+  var splitEl = document.querySelector('.split');
+  var mobileTabs = $('mobileTabs');
+  var isMobile = function () { return window.matchMedia('(max-width:960px)').matches; };
+
+  var panelInputEl = document.querySelector('.panel-input');
+  var panelPreviewEl = document.querySelector('.panel-preview');
+
+  /* Only ever applies .mobile-panel-hidden when the real window is narrow.
+     On desktop neither panel gets the class, so html2canvas's own narrow
+     internal rendering pass (export.js asks for a 794px-wide context) never
+     finds a reason to hide anything - see the CSS comment on the class
+     itself for why this can't be a plain width-based media query. */
+  function setMobileTab(tab) {
+    if (!splitEl) return;
+    splitEl.classList.toggle('tab-build', tab === 'build');
+    splitEl.classList.toggle('tab-preview', tab === 'preview');
+    if (mobileTabs) {
+      Array.prototype.slice.call(mobileTabs.querySelectorAll('.mobile-tab')).forEach(function (b) {
+        b.classList.toggle('active', b.dataset.tab === tab);
+      });
+    }
+    var mobile = isMobile();
+    if (panelInputEl) panelInputEl.classList.toggle('mobile-panel-hidden', mobile && tab !== 'build');
+    if (panelPreviewEl) panelPreviewEl.classList.toggle('mobile-panel-hidden', mobile && tab !== 'preview');
+  }
+
+  /* A resize can cross the breakpoint without any tab click happening - keep
+     the hidden state honest either way. */
+  window.addEventListener('resize', function () {
+    var current = splitEl && splitEl.classList.contains('tab-preview') ? 'preview' : 'build';
+    setMobileTab(current);
+  });
+
+  if (mobileTabs) {
+    mobileTabs.addEventListener('click', function (e) {
+      var b = e.target.closest('.mobile-tab');
+      if (b) setMobileTab(b.dataset.tab);
+    });
+  }
+
+  /* Called after a successful build, so the phone moves forward to the
+     result the way the reference app advances to its next screen. */
+  function showPreviewOnMobile() {
+    if (isMobile()) setMobileTab('preview');
+  }
+
   /* ---- theme picker ------------------------------------------------------ */
 
   function syncThemeSwatchUI() {
@@ -671,6 +725,8 @@
     addChip.textContent = '+ Day';
     daysWrap.appendChild(addChip);
 
+    renderDayPlan(dayCount);
+
     var wrap = $('libItems');
     wrap.textContent = '';
     var shown = items.filter(function (it) { return it.category === state.libCat; });
@@ -685,6 +741,13 @@
     shown.forEach(function (it, idx) {
       var row = document.createElement('div');
       row.className = 'lib-item';
+
+      var thumb = document.createElement('div');
+      thumb.className = 'lib-item-thumb';
+      if (it.image) thumb.style.backgroundImage = 'url("' + it.image.replace(/"/g, '%22') + '")';
+      else thumb.textContent = (it.name || '?').trim().charAt(0).toUpperCase();
+      row.appendChild(thumb);
+
       var b = document.createElement('div');
       b.className = 'lib-item-body';
       var name = document.createElement('div');
@@ -721,6 +784,64 @@
       row.appendChild(btn);
       wrap.appendChild(row);
     });
+  }
+
+  /* A compact route-style preview of what is already sitting in the day
+     currently selected - the same shape as a finished trip's timeline, just
+     drawn live while the day is still being assembled. */
+  function renderDayPlan(dayCount) {
+    var wrap = $('libDayPlan');
+    if (!wrap) return;
+    wrap.textContent = '';
+
+    var day = (dayCount > 0 && state.model) ? state.model.days[state.libDay] : null;
+    if (!day || !day.items.length) {
+      var e = document.createElement('div');
+      e.className = 'lib-day-plan-empty';
+      e.textContent = dayCount ? 'Nothing added to Day ' + (state.libDay + 1) + ' yet.' : 'Add a day, then click items into it.';
+      wrap.appendChild(e);
+      return;
+    }
+
+    var total = 0, any = false;
+    day.items.forEach(function (it) {
+      var row = document.createElement('div');
+      row.className = 'lib-day-plan-row';
+      row.appendChild(el('div', 'lib-day-plan-dot'));
+
+      var body = el('div', 'lib-day-plan-body');
+      body.appendChild(el('div', 'lib-day-plan-name', it.title));
+      if (it.eyebrow) body.appendChild(el('div', 'lib-day-plan-meta', it.eyebrow));
+      row.appendChild(body);
+
+      if (it.price != null) {
+        row.appendChild(el('div', 'lib-day-plan-price', window.GGParser.money(it.price, 'INR')));
+        total += it.price;
+        any = true;
+      }
+      wrap.appendChild(row);
+    });
+
+    var footer = el('div', 'lib-day-plan-footer');
+    var left = document.createElement('span');
+    left.appendChild(el('b', null, String(day.items.length)));
+    left.appendChild(document.createTextNode(' item' + (day.items.length === 1 ? '' : 's')));
+    footer.appendChild(left);
+    if (any) {
+      var right = document.createElement('span');
+      right.appendChild(el('b', null, window.GGParser.money(total, 'INR')));
+      footer.appendChild(right);
+    }
+    wrap.appendChild(footer);
+  }
+
+  /* Tiny DOM helper, matching the one render.js uses - kept local so this
+     file has no dependency on render.js's internals. */
+  function el(tag, cls, text) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    return n;
   }
 
   function addLibraryItem(item) {
@@ -1041,6 +1162,8 @@
   }
 
   state.library = window.GGLibrary.loadLibrary();
+
+  setMobileTab('build');
 
   preloadLogos().then(function () {
     if (!restore()) { emptyState.hidden = false; syncThemeSwatchUI(); syncLayoutPickerUI(); }
