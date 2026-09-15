@@ -4,7 +4,9 @@
 (function () {
   'use strict';
 
-  var STORE = 'gg-itinerary-v2';
+  var LEGACY_STORE = 'gg-itinerary-v2';   // the single-itinerary save, before the list
+  var TRIPS_STORE = 'gg-trips-v1';        // the list itself: small summaries only
+  var AGENCY_STORE = 'gg-agency-v1';      // advisor + default lists for new itineraries
   var $ = function (id) { return document.getElementById(id); };
 
   var docEl       = $('doc');
@@ -22,8 +24,8 @@
 
   var state = {
     model: null, zoom: 0, photoPath: null, activeCard: null,
-    library: {}, libDest: null, libCat: 'hotel', libDay: 0, libSearch: '',
-    itinOpen: {}
+    library: {}, libDest: null, libCity: '', libCat: 'all', libDay: 0, libSearch: '',
+    itinOpen: {}, tripId: null
   };
 
   /* Used by the activity library: a blank model to click items into when
@@ -38,6 +40,7 @@
     if (themeChoice) model.meta.theme = themeChoice;
     var layoutChoice = $('f-layout').value;
     if (layoutChoice) model.meta.layout = layoutChoice;
+    applyListDefaults(model, null);
     window.GGParser.recompute(model);
     state.model = model;
     emptyState.hidden = true;
@@ -148,18 +151,141 @@
   }
 
   function persistNow() {
-    try {
-      localStorage.setItem(STORE, JSON.stringify({
-        model: state.model, raw: $('raw').value, fields: readFields(),
-        themeChoice: $('f-theme').value, layoutChoice: $('f-layout').value
-      }));
+    if (!state.tripId) return;
+    var payload = {
+      model: state.model, raw: $('raw').value, fields: readFields(),
+      themeChoice: $('f-theme').value, layoutChoice: $('f-layout').value
+    };
+    var id = state.tripId;
+    tripDB.set('trip:' + id, payload).then(function () {
       var s = $('saveState');
       s.classList.add('on');
       setTimeout(function () { s.classList.remove('on'); }, 1400);
-    } catch (e) { /* private window or quota - not fatal */ }
+    }).catch(function () {
+      toast('Could not save — browser storage may be full. Download older itineraries as files, then delete them.', true);
+    });
+    upsertTripSummary(id, payload);
   }
 
-  /* ---- undo / redo --------------------------------------------------------
+  /* ---- saved itineraries -------------------------------------------------
+     Each itinerary lives in IndexedDB under its own id - photos make these
+     far too large for localStorage once there are dozens of them - while
+     the list screen reads a small summary index kept in localStorage, so
+     it draws instantly without opening every trip. */
+
+  var tripDB = (function () {
+    var dbPromise = null;
+    function open() {
+      if (!dbPromise) {
+        dbPromise = new Promise(function (resolve, reject) {
+          if (!window.indexedDB) { reject(new Error('no indexedDB')); return; }
+          var req = indexedDB.open('gg-itineraries', 1);
+          req.onupgradeneeded = function () { req.result.createObjectStore('trips'); };
+          req.onsuccess = function () { resolve(req.result); };
+          req.onerror = function () { reject(req.error); };
+        });
+      }
+      return dbPromise;
+    }
+    function run(mode, fn) {
+      return open().then(function (db) {
+        return new Promise(function (resolve, reject) {
+          var tx = db.transaction('trips', mode);
+          var req = fn(tx.objectStore('trips'));
+          tx.oncomplete = function () { resolve(req.result); };
+          tx.onerror = tx.onabort = function () { reject(tx.error); };
+        });
+      });
+    }
+    return {
+      get: function (k) { return run('readonly', function (st) { return st.get(k); }); },
+      set: function (k, v) { return run('readwrite', function (st) { return st.put(v, k); }); },
+      del: function (k) { return run('readwrite', function (st) { return st.delete(k); }); }
+    };
+  })();
+
+  function newTripId() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  }
+
+  function loadTrips() {
+    try { return JSON.parse(localStorage.getItem(TRIPS_STORE) || '[]'); } catch (e) { return []; }
+  }
+
+  function saveTrips(list) {
+    try { localStorage.setItem(TRIPS_STORE, JSON.stringify(list)); } catch (e) { /* not fatal */ }
+  }
+
+  function summarise(payload) {
+    var f = payload.fields || {};
+    var m = (payload.model && payload.model.meta) || {};
+    var p = payload.model && payload.model.pricing;
+    return {
+      customer: f.guest || m.guest || '',
+      title: [f.title || m.title, f.titleAccent || m.titleAccent].filter(Boolean).join(' ').replace(/[.]+$/, ''),
+      dates: f.dates || m.dates || '',
+      party: [f.party || m.party, f.children || m.children].filter(Boolean).join(' · '),
+      days: payload.model ? payload.model.days.length : 0,
+      total: p && p.grandTotal ? p.grandTotal : null
+    };
+  }
+
+  function upsertTripSummary(id, payload) {
+    var list = loadTrips();
+    var now = Date.now();
+    var i = list.findIndex(function (t) { return t.id === id; });
+    var entry = Object.assign(i > -1 ? list[i] : { id: id, createdAt: now }, summarise(payload), { updatedAt: now });
+    if (i > -1) list[i] = entry; else list.unshift(entry);
+    saveTrips(list);
+  }
+
+  function removeTripSummary(id) {
+    saveTrips(loadTrips().filter(function (t) { return t.id !== id; }));
+  }
+
+  /* The one itinerary saved before the list existed becomes the first entry
+     in it, so nobody opens the new version to find their work gone. */
+  function migrateLegacy() {
+    var raw;
+    try { raw = localStorage.getItem(LEGACY_STORE); } catch (e) { return Promise.resolve(); }
+    if (!raw) return Promise.resolve();
+    var data;
+    try { data = JSON.parse(raw); } catch (e) { return Promise.resolve(); }
+    if (!data || !(data.model || (data.raw || '').trim())) {
+      localStorage.removeItem(LEGACY_STORE);
+      return Promise.resolve();
+    }
+    var id = newTripId();
+    return tripDB.set('trip:' + id, data).then(function () {
+      upsertTripSummary(id, data);
+      localStorage.removeItem(LEGACY_STORE);
+    }).catch(function () { /* leave it in place and try again next visit */ });
+  }
+
+  /* ---- agency settings --------------------------------------------------- */
+
+  var LIST_KEYS = ['inclusions', 'exclusions', 'terms'];
+
+  function loadAgency() {
+    try { return JSON.parse(localStorage.getItem(AGENCY_STORE) || '{}'); } catch (e) { return {}; }
+  }
+
+  function saveAgency(a) {
+    try { localStorage.setItem(AGENCY_STORE, JSON.stringify(a)); } catch (e) { /* not fatal */ }
+  }
+
+  /* An empty list is filled from the itinerary being rebuilt (so a re-paste
+     never wipes lists edited by hand), otherwise from Agency settings. */
+  function applyListDefaults(model, previous) {
+    var agency = loadAgency();
+    LIST_KEYS.forEach(function (k) {
+      if (model[k] && model[k].length) return;
+      if (previous && previous[k] && previous[k].length) model[k] = previous[k].slice();
+      else if (agency[k] && agency[k].length) model[k] = agency[k].slice();
+    });
+  }
+
+    /* ---- undo / redo --------------------------------------------------------
      A history of whole-model snapshots. save() itself is already debounced
      700ms after the last edit, so a burst of keystrokes or a rapid sequence
      of clicks collapses into one undo step, the way most editors group them. */
@@ -216,9 +342,12 @@
   function updateTripName() {
     var el = $('tripName');
     if (!el) return;
-    var m = state.model && state.model.meta;
-    var name = m ? [m.title, m.titleAccent].filter(Boolean).join(' ').replace(/[.]+$/, '') : '';
-    el.textContent = name || 'Untitled trip';
+    // The agency works customer by customer, so the customer leads.
+    var m = (state.model && state.model.meta) || {};
+    var customer = m.guest || $('f-guest').value.trim();
+    var trip = [m.title || $('f-title').value.trim(), m.titleAccent || $('f-titleAccent').value.trim()]
+      .filter(Boolean).join(' ').replace(/[.]+$/, '');
+    el.textContent = [customer, trip].filter(Boolean).join(' · ') || 'New itinerary';
   }
 
   /* Any open ••• menu or dropdown closes when another one opens, or when
@@ -240,10 +369,8 @@
     FIELDS.forEach(function (k) { if (meta[k]) $('f-' + k).value = meta[k]; });
   }
 
-  function restore() {
-    var data;
-    try { data = JSON.parse(localStorage.getItem(STORE) || 'null'); } catch (e) { return false; }
-    if (!data) return false;
+  /* Loads one saved itinerary into the (already cleared) workspace. */
+  function applyTripData(data) {
     if (data.raw) $('raw').value = data.raw;
     if (data.fields) FIELDS.forEach(function (k) {
       if (data.fields[k]) $('f-' + k).value = data.fields[k];
@@ -252,19 +379,25 @@
     syncThemeSwatchUI();
     $('f-layout').value = data.layoutChoice || 'editorial';
     syncLayoutPickerUI();
-    if (data.model && data.model.days) {
-      state.model = data.model;
-      rerender();
-      writeCostInputs();
-      refreshCosting();
-      renderLibraryUI();
-      renderItinerary();
-      renderDocLists();
-      updateTripName();
-      resetHistory();
-      return true;
+    $('raw').dispatchEvent(new Event('input'));
+
+    if (!data.model || !data.model.days) {
+      showSetup();
+      return;
     }
-    return false;
+    state.model = data.model;
+    // The workspace must be visible before rendering: pagination measures
+    // real scrollHeight, which a hidden ancestor reports as zero.
+    endOnboarding();
+    rerender();
+    writeCostInputs();
+    refreshCosting();
+    renderLibraryUI();
+    renderItinerary();
+    renderDocLists();
+    updateTripName();
+    resetHistory();
+    setBuildTab('itinerary');
   }
 
   /* ---- generate --------------------------------------------------------- */
@@ -272,7 +405,7 @@
   function generate() {
     var raw = $('raw').value;
     if (!raw.trim()) {
-      toast('Paste your plan first, then hit Generate.', true);
+      toast('Paste the customer\'s chat first.', true);
       $('raw').focus();
       return;
     }
@@ -287,7 +420,9 @@
     var layoutChoice = $('f-layout').value;
     if (layoutChoice) model.meta.layout = layoutChoice;
 
+    applyListDefaults(model, state.model);
     window.GGParser.recompute(model);
+    if (!state.tripId) state.tripId = newTripId();
 
     if (state.model) {
       carryPhotos(state.model, model);
@@ -313,11 +448,11 @@
     setBuildTab('itinerary');
 
     if (!model.days.length) {
-      toast('No days found — start lines with "Day 1", "Day 2" and generate again.', true);
+      toast('No days found — start lines with "Day 1", "Day 2" and try again.', true);
       return;
     }
-    toast('Built — ' + model.days.length + ' days, ' +
-          docEl.querySelectorAll('.page').length + ' pages. Click any text to edit, or a photo slot to fill it.');
+    toast('Itinerary ready — ' + model.days.length + ' days, ' +
+          docEl.querySelectorAll('.page').length + ' pages. Click any text in the preview to edit it.');
     // Deferred a tick so the switch always lands after this render has fully
     // settled, rather than racing it.
     setTimeout(showPreviewOnMobile, 0);
@@ -562,8 +697,7 @@
     $('exportMenuTop').hidden = true;
     $('btnExportTop').setAttribute('aria-expanded', 'false');
 
-    if (kind === 'open') { fileProject.value = ''; fileProject.click(); return; }
-    if (!state.model) { toast('Generate an itinerary first.', true); return; }
+    if (!state.model) { toast('Create the itinerary first.', true); return; }
 
     try {
       if (kind === 'pdf') {
@@ -573,7 +707,7 @@
           $('overlayMsg').textContent = 'Rendering page ' + i + ' of ' + n + '…';
         });
         overlay(false);
-        toast('PDF saved to your Downloads folder — ' + pages + ' pages, print ready.');
+        toast('PDF saved to Downloads — ' + pages + ' pages, ready to send to the customer.');
       } else if (kind === 'docx') {
         overlay(true, 'Building the Word file', 'Packing text and photos…');
         await window.GGExport.docx(state.model);
@@ -586,7 +720,7 @@
         toast('Editable web page saved — open it in any browser.');
       } else if (kind === 'ggi') {
         window.GGExport.project(state.model);
-        toast('Project file saved — reopen it here to duplicate this trip.');
+        toast('Itinerary file saved — open it from the Itineraries screen on any computer.');
       }
     } catch (err) {
       overlay(false);
@@ -599,7 +733,10 @@
     if (!f) return;
     try {
       var model = await window.GGExport.readProject(f);
+      clearWorkspace();
+      state.tripId = newTripId();
       state.model = model;
+      applyListDefaults(model, null);
       writeFields(model.meta || {});
       endOnboarding();
       rerender();
@@ -609,9 +746,9 @@
       renderLibraryUI();
       renderItinerary();
       renderDocLists();
-      save();
+      persistNow();
       resetHistory();
-      toast('Project loaded — ' + model.days.length + ' days.');
+      toast('Added to your itineraries — ' + model.days.length + ' days.');
       setBuildTab('itinerary');
       setTimeout(showPreviewOnMobile, 0);
     } catch (err) {
@@ -629,7 +766,7 @@
     refreshCostReview();
   }
 
-  /* The client-facing summary at the top of the Quotation tab - Subtotal,
+  /* The customer-facing summary at the top of the Quotation tab - Subtotal,
      Discount, GST/TCS, Client Total. Margin never appears here; the full
      internal breakdown (including margin) stays inside the Advanced disclosure. */
   function refreshQuoSummary() {
@@ -658,7 +795,7 @@
     row('Discount', p.discount, 'row--discount', '− ');
     if (p.gst) row('GST ' + p.gstPct + '%', p.gst);
     if (p.tcs) row('TCS ' + p.tcsPct + '%', p.tcs);
-    row('Client total', p.grandTotal, 'row--grand');
+    row('Customer total', p.grandTotal, 'row--grand');
     if (p.perPerson) row('Per person (÷ ' + p.heads + ')', p.perPerson);
     if (!p.subtotal && !p.grandTotal) box.innerHTML = '<div class="quo-empty">Add a price to a day or hotel to see the costing.</div>';
   }
@@ -787,8 +924,8 @@
      there only, so the bar never needs a horizontal scroll of its own. */
   function updateChromeForWidth() {
     var narrow = window.matchMedia('(max-width:520px)').matches;
-    var resetBtn = $('btnReset');
-    if (resetBtn) resetBtn.textContent = narrow ? 'New' : 'New itinerary';
+    var homeBtn = $('btnHome');
+    if (homeBtn) homeBtn.lastChild.textContent = narrow ? '' : ' Itineraries';
   }
 
   function setMobileTab(tab) {
@@ -835,49 +972,303 @@
      set of inputs, so there's nothing to keep in sync. */
 
   var onboardEl = $('onboarding');
+  var homeEl = $('home');
   var fgTripDetails = $('fgTripDetails');
   var fgPastePlan = $('fgPastePlan');
   var fgTripDetailsSlot = $('fgTripDetailsSlot');
   var fgPastePlanSlot = $('fgPastePlanSlot');
-  var onboardStep1 = $('onboardStep1');
-  var onboardStep2 = $('onboardStep2');
   var onboardSlot1 = $('onboardSlot1');
   var onboardSlot2 = $('onboardSlot2');
 
-  function setOnboardStep(step) {
-    if (onboardStep1) onboardStep1.classList.toggle('active', step === 1);
-    if (onboardStep2) onboardStep2.classList.toggle('active', step === 2);
-    Array.prototype.slice.call(document.querySelectorAll('.onboard-dot')).forEach(function (d) {
-      d.classList.toggle('active', +d.dataset.step === step);
+  /* Three screens: the list of itineraries, the setup page for a new one,
+     and the two-tab workspace. The topbar reads body[data-view] to show
+     only what applies to each. */
+  function setView(view) {
+    document.body.dataset.view = view;
+    if (homeEl) homeEl.hidden = view !== 'home';
+    if (onboardEl) onboardEl.hidden = view !== 'setup';
+    if (splitEl) splitEl.hidden = view !== 'trip';
+    if (mobileTabs) mobileTabs.hidden = view !== 'trip';
+    closeAllPopovers();
+  }
+
+  function showSetup() {
+    if (onboardSlot1 && fgTripDetails) onboardSlot1.appendChild(fgTripDetails);
+    if (onboardSlot2 && fgPastePlan) onboardSlot2.appendChild(fgPastePlan);
+    $('btnGenerate').textContent = 'Create itinerary';
+    setView('setup');
+    updateTripName();
+  }
+
+  /* Safe to call from any screen - re-appending an already-placed node is a
+     no-op. */
+  function endOnboarding() {
+    if (fgTripDetailsSlot && fgTripDetails) fgTripDetailsSlot.appendChild(fgTripDetails);
+    if (fgPastePlanSlot && fgPastePlan) fgPastePlanSlot.appendChild(fgPastePlan);
+    $('btnGenerate').textContent = 'Rebuild itinerary from chat';
+    setView('trip');
+  }
+
+  function clearWorkspace() {
+    clearTimeout(saveTimer);
+    state.model = null;
+    state.tripId = null;
+    $('raw').value = '';
+    FIELDS.forEach(function (k) { $('f-' + k).value = ''; });
+    $('f-theme').value = '';
+    syncThemeSwatchUI();
+    $('f-layout').value = 'editorial';
+    syncLayoutPickerUI();
+    ['c-margin', 'c-gst', 'c-tcs', 'c-discount'].forEach(function (id) { $(id).value = ''; });
+    $('c-showMargin').checked = false;
+    state.libDay = 0;
+    state.itinOpen = {};
+    state.libSearch = '';
+    $('libSearch').value = '';
+    refreshCosting();
+    renderLibraryUI();
+    renderItinerary();
+    renderDocLists();
+    docEl.textContent = '';
+    emptyState.hidden = false;
+    $('rawCount').textContent = '0 lines';
+    history = [];
+    historyIndex = -1;
+    updateHistoryButtons();
+    updateTripName();
+  }
+
+  function newItinerary() {
+    clearWorkspace();
+    state.tripId = newTripId();
+    var agency = loadAgency();
+    if (agency.preparedBy) $('f-preparedBy').value = agency.preparedBy;
+    if (agency.advisorPhone) $('f-advisorPhone').value = agency.advisorPhone;
+    $('f-preparedOn').value = new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+    setBuildTab('paste');
+    showSetup();
+    var paste = $('onboarding');
+    if (paste) paste.querySelectorAll('.setup-col').forEach(function (c) { c.scrollTop = 0; });
+    $('f-guest').focus();
+  }
+
+  function openTrip(id) {
+    return tripDB.get('trip:' + id).then(function (data) {
+      clearWorkspace();
+      if (!data) {
+        removeTripSummary(id);
+        renderHome();
+        toast('That itinerary is no longer saved on this computer.', true);
+        return;
+      }
+      state.tripId = id;
+      applyTripData(data);
+      setTimeout(showPreviewOnMobile, 0);
+    }).catch(function () {
+      toast('Could not open that itinerary.', true);
     });
   }
 
-  function startOnboarding() {
-    if (!onboardEl) return;
-    if (onboardSlot1 && fgTripDetails) onboardSlot1.appendChild(fgTripDetails);
-    if (onboardSlot2 && fgPastePlan) onboardSlot2.appendChild(fgPastePlan);
-    setOnboardStep(1);
-    onboardEl.hidden = false;
-    if (splitEl) splitEl.hidden = true;
-    if (mobileTabs) mobileTabs.hidden = true;
+  /* Leaving a setup page nobody typed into shouldn't leave an empty row in
+     the list behind. */
+  function goHome() {
+    clearTimeout(saveTimer);
+    var untouched = !state.model && !$('raw').value.trim() &&
+      !$('f-guest').value.trim() && !$('f-title').value.trim();
+    if (state.tripId) {
+      if (untouched) {
+        tripDB.del('trip:' + state.tripId).catch(function () {});
+        removeTripSummary(state.tripId);
+      } else {
+        persistNow();
+      }
+    }
+    clearWorkspace();
+    showHome();
   }
 
-  /* Safe to call even when onboarding was never shown (a returning visitor)
-     or has already ended - re-appending an already-placed node is a no-op. */
-  function endOnboarding() {
-    if (!onboardEl) return;
-    if (fgTripDetailsSlot && fgTripDetails) fgTripDetailsSlot.appendChild(fgTripDetails);
-    if (fgPastePlanSlot && fgPastePlan) fgPastePlanSlot.appendChild(fgPastePlan);
-    onboardEl.hidden = true;
-    if (splitEl) splitEl.hidden = false;
-    if (mobileTabs) mobileTabs.hidden = false;
+  function showHome() {
+    setView('home');
+    renderHome();
   }
 
-  var btnOnboardNext = $('btnOnboardNext');
-  if (btnOnboardNext) btnOnboardNext.addEventListener('click', function () { setOnboardStep(2); });
+  /* ---- itineraries list -------------------------------------------------- */
 
-  var btnOnboardBack = $('btnOnboardBack');
-  if (btnOnboardBack) btnOnboardBack.addEventListener('click', function () { setOnboardStep(1); });
+  var homeSearchEl = $('homeSearch');
+
+  function relativeTime(ts) {
+    var d = new Date(ts), now = new Date();
+    var mins = Math.round((now - d) / 60000);
+    if (mins < 1) return 'Just now';
+    if (mins < 60) return mins + ' min ago';
+    var time = d.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' });
+    if (d.toDateString() === now.toDateString()) return 'Today, ' + time;
+    var y = new Date(now); y.setDate(now.getDate() - 1);
+    if (d.toDateString() === y.toDateString()) return 'Yesterday, ' + time;
+    return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+
+  function renderHome() {
+    var list = loadTrips().sort(function (a, b) { return b.updatedAt - a.updatedAt; });
+    var wrap = $('tripList');
+    wrap.textContent = '';
+    $('homeEmpty').hidden = list.length > 0;
+    $('homeToolbar').hidden = list.length === 0;
+    if (!list.length) return;
+
+    var words = (homeSearchEl.value || '').trim().toLowerCase().split(/\s+/).filter(Boolean);
+    var shown = list.filter(function (t) {
+      var hay = [t.customer, t.title, t.dates, t.party].join(' ').toLowerCase();
+      return words.every(function (w) { return hay.indexOf(w) > -1; });
+    });
+
+    var head = el('div', 'trip-row trip-row--head');
+    ['Customer', 'Travel dates', 'Travelers', 'Quotation', 'Last edited', ''].forEach(function (h, i) {
+      head.appendChild(el('div', 'trip-cell' + (i === 3 ? ' trip-total' : ''), h));
+    });
+    wrap.appendChild(head);
+
+    if (!shown.length) {
+      wrap.appendChild(el('div', 'trip-none', 'No itineraries match "' + homeSearchEl.value.trim() + '".'));
+      return;
+    }
+
+    shown.forEach(function (t) {
+      var row = el('div', 'trip-row');
+      row.dataset.id = t.id;
+      row.tabIndex = 0;
+
+      var who = el('div', 'trip-cell trip-customer');
+      who.appendChild(el('b', null, t.customer || 'No customer name'));
+      who.appendChild(el('span', null, [t.title || 'Untitled trip', t.days ? t.days + ' days' : 'Not created yet']
+        .join(' · ')));
+      row.appendChild(who);
+      row.appendChild(el('div', 'trip-cell trip-cell--dates', t.dates || '—'));
+      row.appendChild(el('div', 'trip-cell trip-cell--party', t.party || '—'));
+      row.appendChild(el('div', 'trip-cell trip-total', t.total ? window.GGParser.money(t.total, 'INR') : '—'));
+      row.appendChild(el('div', 'trip-cell trip-cell--edited', relativeTime(t.updatedAt)));
+
+      row.appendChild(itinMenuEl([
+        ['open', 'Open'],
+        ['duplicate', 'Duplicate for another customer'],
+        ['download', 'Download itinerary file'],
+        ['delete', 'Delete']
+      ], function (act) { runTripAction(act, t); }));
+      wrap.appendChild(row);
+    });
+  }
+
+  function runTripAction(act, t) {
+    if (act === 'open') { openTrip(t.id); return; }
+    if (act === 'delete') {
+      var name = t.customer || t.title || 'this itinerary';
+      if (!confirm('Delete the itinerary for ' + name + '? This cannot be undone.')) return;
+      tripDB.del('trip:' + t.id).catch(function () {});
+      removeTripSummary(t.id);
+      renderHome();
+      toast('Itinerary deleted.');
+      return;
+    }
+    tripDB.get('trip:' + t.id).then(function (data) {
+      if (!data) { toast('That itinerary is no longer saved on this computer.', true); return; }
+      if (act === 'download') {
+        if (!data.model) { toast('This itinerary has not been created yet — open it first.', true); return; }
+        window.GGExport.project(data.model);
+        return;
+      }
+      if (act === 'duplicate') {
+        // Same trip, new customer: everything is copied except the name.
+        var copy = JSON.parse(JSON.stringify(data));
+        if (copy.fields) copy.fields.guest = '';
+        if (copy.model && copy.model.meta) copy.model.meta.guest = '';
+        var id = newTripId();
+        return tripDB.set('trip:' + id, copy).then(function () {
+          upsertTripSummary(id, copy);
+          return openTrip(id);
+        }).then(function () {
+          setBuildTab('overview');
+          $('f-guest').focus();
+          toast('Duplicated — enter the new customer\'s name.');
+        });
+      }
+    }).catch(function () { toast('Something went wrong reading that itinerary.', true); });
+  }
+
+  $('tripList').addEventListener('click', function (e) {
+    if (e.target.closest('.itin-day-menu, .itin-activity-menu, .itin-menu-pop, .itin-menu-btn')) return;
+    var row = e.target.closest('.trip-row[data-id]');
+    if (row) openTrip(row.dataset.id);
+  });
+  $('tripList').addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter') return;
+    var row = e.target.closest('.trip-row[data-id]');
+    if (row && e.target === row) openTrip(row.dataset.id);
+  });
+  homeSearchEl.addEventListener('input', renderHome);
+
+  $('btnNewTrip').addEventListener('click', newItinerary);
+  $('btnNewTripEmpty').addEventListener('click', newItinerary);
+  $('btnHome').addEventListener('click', goHome);
+  $('btnOpenFile').addEventListener('click', function () { fileProject.value = ''; fileProject.click(); });
+
+  $('btnSetupBlank').addEventListener('click', function () {
+    if (!state.tripId) state.tripId = newTripId();
+    endOnboarding();
+    ensureModel();
+    rerender();
+    writeCostInputs();
+    refreshCosting();
+    renderLibraryUI();
+    renderItinerary();
+    renderDocLists();
+    resetHistory();
+    persistNow();
+    setBuildTab('itinerary');
+    toast('Blank itinerary — add days here, or pick items from Quotation › Cost sheet.');
+  });
+
+  /* ---- agency settings sheet ---------------------------------------------- */
+
+  var agencySheet = $('agencySheet');
+
+  function openAgency() {
+    var a = loadAgency();
+    $('ag-preparedBy').value = a.preparedBy || '';
+    $('ag-advisorPhone').value = a.advisorPhone || '';
+    LIST_KEYS.forEach(function (k) { $('ag-' + k).value = (a[k] || []).join('\n'); });
+    agencySheet.hidden = false;
+    $('ag-preparedBy').focus();
+  }
+
+  function closeAgency() { agencySheet.hidden = true; }
+
+  function lines(v) {
+    return String(v).split('\n').map(function (l) { return l.trim(); }).filter(Boolean);
+  }
+
+  $('btnAgency').addEventListener('click', openAgency);
+  $('btnAgencyCancel').addEventListener('click', closeAgency);
+  agencySheet.addEventListener('click', function (e) { if (e.target === agencySheet) closeAgency(); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !agencySheet.hidden) closeAgency();
+  });
+  $('btnAgencySave').addEventListener('click', function () {
+    var a = loadAgency();
+    a.preparedBy = $('ag-preparedBy').value.trim();
+    a.advisorPhone = $('ag-advisorPhone').value.trim();
+    LIST_KEYS.forEach(function (k) { a[k] = lines($('ag-' + k).value); });
+    saveAgency(a);
+    closeAgency();
+    toast('Agency settings saved — used on every new itinerary.');
+  });
+
+  $('btnSaveListsDefault').addEventListener('click', function () {
+    if (!state.model) return;
+    var a = loadAgency();
+    LIST_KEYS.forEach(function (k) { a[k] = (state.model[k] || []).filter(Boolean).slice(); });
+    saveAgency(a);
+    toast('Saved — new itineraries will start with these lists.');
+  });
 
   /* ---- theme picker ------------------------------------------------------ */
 
@@ -903,20 +1294,24 @@
     });
   }
 
-  /* ---- activity library ---------------------------------------------------
-     Built from an imported Excel cost sheet (one worksheet per destination),
-     and stored in its own localStorage key so it survives across trips - a
-     reusable inventory, the way the client described it as a "database". */
+  /* ---- cost sheet ----------------------------------------------------------
+     The agency's own rates, imported from their Excel workbook and kept in
+     this browser only (never bundled into the public app). Each item carries
+     one or more rates - per vehicle size, or per adult / child - and clicking
+     a rate adds it to the selected day, multiplied out for the group. */
+
+  var LIB_LIMIT = 120;
 
   function renderLibraryUI() {
     var destRow = $('libDestRow');
+    var cityRow = $('libCityRow');
     var body = $('libBody');
     var empty = $('libEmpty');
     var dests = Object.keys(state.library);
 
+    $('libManage').hidden = !dests.length;
     if (!dests.length) {
-      destRow.hidden = true;
-      body.hidden = true;
+      destRow.hidden = true; cityRow.hidden = true; body.hidden = true;
       empty.hidden = false;
       return;
     }
@@ -925,30 +1320,46 @@
     body.hidden = false;
 
     if (!state.libDest || dests.indexOf(state.libDest) === -1) state.libDest = dests[0];
+    var items = state.library[state.libDest] || [];
 
     destRow.textContent = '';
     dests.forEach(function (d) {
-      var b = document.createElement('button');
+      var b = el('button', 'lib-dest' + (d === state.libDest ? ' active' : ''), d);
       b.type = 'button';
-      b.className = 'lib-dest' + (d === state.libDest ? ' active' : '');
-      b.textContent = d;
       b.dataset.dest = d;
       destRow.appendChild(b);
     });
 
-    var items = state.library[state.libDest] || [];
+    // City chips, in the order the sheets list them.
+    var cities = [];
+    items.forEach(function (it) { if (it.city && cities.indexOf(it.city) === -1) cities.push(it.city); });
+    if (cities.indexOf(state.libCity) === -1) state.libCity = '';
+    cityRow.hidden = cities.length < 2;
+    cityRow.textContent = '';
+    [''].concat(cities).forEach(function (c) {
+      var b = el('button', 'lib-city' + (c === state.libCity ? ' active' : ''), c || 'All cities');
+      b.type = 'button';
+      b.dataset.city = c;
+      cityRow.appendChild(b);
+    });
+
+    // Counts follow the city and the search, so each tab says how many
+    // results it would show right now.
+    var inCity = items.filter(function (it) { return !state.libCity || it.city === state.libCity; });
+    var matching = filteredLibraryItems(items, true);
     Array.prototype.slice.call(document.querySelectorAll('#libCatTabs .lib-tab')).forEach(function (t) {
       var cat = t.dataset.cat;
-      var n = items.filter(function (it) { return it.category === cat; }).length;
+      var n = cat === 'all' ? matching.length : matching.filter(function (it) { return it.category === cat; }).length;
+      t.hidden = cat !== 'all' && !inCity.some(function (it) { return it.category === cat; });
       t.classList.toggle('active', cat === state.libCat);
       var badge = t.querySelector('.lib-tab-n');
-      if (!badge) {
-        badge = document.createElement('span');
-        badge.className = 'lib-tab-n';
-        t.appendChild(badge);
-      }
-      badge.textContent = n ? '(' + n + ')' : '';
+      if (!badge) { badge = el('span', 'lib-tab-n'); t.appendChild(badge); }
+      badge.textContent = n ? String(n) : '';
     });
+    if (state.libCat !== 'all' && !inCity.some(function (it) { return it.category === state.libCat; })) {
+      state.libCat = 'all';
+      return renderLibraryUI();
+    }
 
     var dayCount = state.model ? state.model.days.length : 0;
     if (state.libDay >= dayCount) state.libDay = Math.max(0, dayCount - 1);
@@ -956,18 +1367,19 @@
     var daysWrap = $('libDays');
     daysWrap.textContent = '';
     for (var i = 0; i < dayCount; i++) {
-      var chip = document.createElement('button');
+      var chip = el('button', 'lib-day-chip' + (i === state.libDay ? ' active' : ''), 'Day ' + (i + 1));
       chip.type = 'button';
-      chip.className = 'lib-day-chip' + (i === state.libDay ? ' active' : '');
-      chip.textContent = 'Day ' + (i + 1);
       chip.dataset.day = i;
       daysWrap.appendChild(chip);
     }
-    var addChip = document.createElement('button');
+    var addChip = el('button', 'lib-day-add', '+ Day');
     addChip.type = 'button';
-    addChip.className = 'lib-day-add';
-    addChip.textContent = '+ Day';
     daysWrap.appendChild(addChip);
+
+    var pax = travellers();
+    $('libPax').textContent = pax.known
+      ? 'Per-person rates are multiplied for ' + paxPhrase(pax) + ' (from Trip details). Vehicle rates count once.'
+      : 'Add the number of travelers in Trip details and per-person rates are multiplied for the group.';
 
     renderDayPlan(dayCount);
 
@@ -975,66 +1387,47 @@
     wrap.textContent = '';
     var shown = filteredLibraryItems(items);
     if (!shown.length) {
-      var e = document.createElement('div');
-      e.className = 'lib-empty';
-      e.style.marginTop = '0';
-      e.textContent = state.libSearch
-        ? 'Nothing matches "' + state.libSearch + '" here.'
-        : 'No ' + (window.GGLibrary.CAT_LABEL[state.libCat] || '').toLowerCase() + ' in this destination yet.';
-      wrap.appendChild(e);
+      wrap.appendChild(el('div', 'lib-none', state.libSearch
+        ? 'Nothing matches "' + state.libSearch.trim() + '"' + (state.libCity ? ' in ' + state.libCity : '') + '.'
+        : 'Nothing in this list.'));
       return;
     }
-    shown.forEach(function (it, idx) {
-      var row = document.createElement('div');
-      row.className = 'lib-item';
+    wrap.appendChild(el('div', 'lib-count', shown.length + ' result' + (shown.length === 1 ? '' : 's') +
+      (shown.length > LIB_LIMIT ? ' — showing the first ' + LIB_LIMIT + '; type more to narrow it down' : '')));
 
-      var thumb = document.createElement('div');
-      thumb.className = 'lib-item-thumb';
-      if (it.image) thumb.style.backgroundImage = 'url("' + it.image.replace(/"/g, '%22') + '")';
-      else thumb.textContent = (it.name || '?').trim().charAt(0).toUpperCase();
-      row.appendChild(thumb);
+    shown.slice(0, LIB_LIMIT).forEach(function (it, idx) {
+      var row = el('div', 'lib-item');
+      var head = el('div', 'lib-item-head');
+      head.appendChild(el('div', 'lib-item-name', it.name));
+      var meta = [window.GGLibrary.CAT_SINGLE[it.category], it.city, it.service, it.description, it.meta]
+        .filter(Boolean).join(' · ');
+      if (meta) head.appendChild(el('div', 'lib-item-meta', meta));
+      if (it.notes) head.appendChild(el('div', 'lib-item-note', it.notes));
+      if (it.season && window.GGLibrary.isExpired(it.season)) {
+        head.appendChild(el('div', 'lib-item-expired', 'Rate season ended — ' + it.season + '. Check the price with the supplier.'));
+      }
+      row.appendChild(head);
 
-      var b = document.createElement('div');
-      b.className = 'lib-item-body';
-      var name = document.createElement('div');
-      name.className = 'lib-item-name';
-      name.textContent = it.name;
-      b.appendChild(name);
-      if (it.description) {
-        var meta = document.createElement('div');
-        meta.className = 'lib-item-meta';
-        meta.textContent = it.description;
-        b.appendChild(meta);
-      }
-      if (it.price != null) {
-        var price = document.createElement('div');
-        price.className = 'lib-item-price';
-        price.textContent = window.GGParser.money(it.price, 'INR');
-        b.appendChild(price);
-      }
-      row.appendChild(b);
-
-      var btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'lib-item-add';
-      btn.textContent = '+';
-      btn.dataset.itemIndex = idx;
-      if (it.category === 'hotel') {
-        btn.title = 'Add to accommodation';
-      } else if (dayCount === 0) {
-        btn.title = 'Add a day first';
-        btn.disabled = true;
-      } else {
-        btn.title = 'Add to Day ' + (state.libDay + 1);
-      }
-      row.appendChild(btn);
+      var rates = el('div', 'lib-rates');
+      (it.rates || []).forEach(function (r, ri) {
+        var b = el('button', 'lib-rate');
+        b.type = 'button';
+        b.dataset.itemIndex = idx;
+        b.dataset.rateIndex = ri;
+        b.title = dayCount || it.category === 'hotel'
+          ? 'Add ' + r.label + ' to ' + (it.category === 'hotel' ? 'accommodation' : 'Day ' + (state.libDay + 1))
+          : 'Adds to Day 1';
+        b.appendChild(el('span', 'lib-rate-label', r.basis === 'unit' ? 'Add' : r.label));
+        b.appendChild(el('span', 'lib-rate-price', window.GGParser.money(r.price, 'INR')));
+        rates.appendChild(b);
+      });
+      row.appendChild(rates);
       wrap.appendChild(row);
     });
   }
 
   /* A compact route-style preview of what is already sitting in the day
-     currently selected - the same shape as a finished trip's timeline, just
-     drawn live while the day is still being assembled. */
+     currently selected. */
   function renderDayPlan(dayCount) {
     var wrap = $('libDayPlan');
     if (!wrap) return;
@@ -1042,24 +1435,20 @@
 
     var day = (dayCount > 0 && state.model) ? state.model.days[state.libDay] : null;
     if (!day || !day.items.length) {
-      var e = document.createElement('div');
-      e.className = 'lib-day-plan-empty';
-      e.textContent = dayCount ? 'Nothing added to Day ' + (state.libDay + 1) + ' yet.' : 'Add a day, then click items into it.';
-      wrap.appendChild(e);
+      wrap.appendChild(el('div', 'lib-day-plan-empty',
+        dayCount ? 'Nothing added to Day ' + (state.libDay + 1) + ' yet.' : 'No days yet — adding a price creates Day 1.'));
       return;
     }
 
+    wrap.appendChild(el('div', 'lib-day-plan-title', 'Day ' + (state.libDay + 1) + (day.title && !/^Day \d+$/.test(day.title) ? ' · ' + day.title : '')));
     var total = 0, any = false;
     day.items.forEach(function (it) {
-      var row = document.createElement('div');
-      row.className = 'lib-day-plan-row';
+      var row = el('div', 'lib-day-plan-row');
       row.appendChild(el('div', 'lib-day-plan-dot'));
-
       var body = el('div', 'lib-day-plan-body');
       body.appendChild(el('div', 'lib-day-plan-name', it.title));
-      if (it.eyebrow) body.appendChild(el('div', 'lib-day-plan-meta', it.eyebrow));
+      if (it.note || it.eyebrow) body.appendChild(el('div', 'lib-day-plan-meta', it.note || it.eyebrow));
       row.appendChild(body);
-
       if (it.price != null) {
         row.appendChild(el('div', 'lib-day-plan-price', window.GGParser.money(it.price, 'INR')));
         total += it.price;
@@ -1090,12 +1479,54 @@
     return n;
   }
 
-  function addLibraryItem(item) {
+  /* Adults and children for this itinerary, read from Trip details. */
+  function travellers() {
+    var m = (state.model && state.model.meta) || {};
+    var partyText = $('f-party').value || m.party || '';
+    var childText = $('f-children').value || m.children || '';
+    var adults = parseInt(String(partyText).match(/\d+/), 10) || m.partyCount || 0;
+    var children = parseInt(String(childText).match(/\d+/), 10) || m.childCount || 0;
+    return { adults: adults, children: children, known: adults + children > 0 };
+  }
+
+  function paxPhrase(p) {
+    var parts = [];
+    if (p.adults) parts.push(p.adults + (p.adults === 1 ? ' adult' : ' adults'));
+    if (p.children) parts.push(p.children + (p.children === 1 ? ' child' : ' children'));
+    return parts.join(' + ');
+  }
+
+  /* How many of a rate the group needs: vehicle and flat rates count once;
+     adult / child rates multiply by those travelers; an SIC price that isn't
+     age-banded covers everyone. */
+  function rateQuantity(rate, pax) {
+    if (rate.basis !== 'person') return { qty: 1, basis: '' };
+    if (rate.band === 'adult') {
+      var a = pax.adults || 1;
+      return { qty: a, basis: a + (a === 1 ? ' adult' : ' adults') };
+    }
+    if (rate.band === 'child') {
+      var c = pax.children || 1;
+      return { qty: c, basis: c + (c === 1 ? ' child' : ' children') + ' (' + rate.label.replace(/^child\s*/i, '').replace(/[()]/g, '') + ')' };
+    }
+    var all = (pax.adults + pax.children) || 1;
+    return { qty: all, basis: all + (all === 1 ? ' traveler' : ' travelers') };
+  }
+
+  function addLibraryItem(item, rate) {
     var model = ensureModel();
+    var money = window.GGParser.money;
+    var q = rateQuantity(rate, travellers());
+    var total = rate.price * q.qty;
+    var rateLabel = rate.basis === 'unit' ? '' : rate.label;
+    var note = q.qty > 1
+      ? money(rate.price, 'INR') + ' × ' + q.basis + (rateLabel && rate.basis === 'vehicle' ? ' · ' + rateLabel : '')
+      : [rateLabel && (rate.basis === 'vehicle' ? rateLabel + ' vehicle' : rateLabel), item.notes].filter(Boolean).join(' · ');
+
     if (item.category === 'hotel') {
       model.hotels.push({
-        city: state.libDest || '', name: item.name, dates: '', nights: '',
-        meta: item.meta || '', price: item.price,
+        city: item.city || state.libDest || '', name: item.name, dates: '', nights: '',
+        meta: item.meta || rateLabel, price: total,
         bullets: item.description ? [item.description] : [],
         badge: '', image: item.image || ''
       });
@@ -1105,28 +1536,30 @@
         model.days.push({ n: n, when: '', title: 'Day ' + n, image: '', items: [], total: null });
       }
       model.days[state.libDay].items.push({
-        eyebrow: window.GGLibrary.CAT_LABEL[item.category] || '',
-        title: item.name, detail: item.description, bullets: [], note: item.notes || '',
-        price: item.price, image: item.image || '',
-        part: window.GGParser.inferPart(item.name + ' ' + item.description) || 'morning'
+        eyebrow: [window.GGLibrary.CAT_SINGLE[item.category], item.service].filter(Boolean).join(' · '),
+        title: item.name, detail: item.description || '', bullets: [], note: note,
+        price: total, image: item.image || '',
+        part: window.GGParser.inferPart(item.name + ' ' + (item.description || '')) || 'morning'
       });
     }
     window.GGParser.recompute(model);
+    if (document.body.dataset.view !== 'trip') endOnboarding();
     rerender();
     writeCostInputs();
     refreshCosting();
     renderLibraryUI();
     renderItinerary();
     save();
-    toast(item.category === 'hotel'
-      ? item.name + ' added as a stay.'
-      : item.name + ' added to Day ' + (state.libDay + 1) + '.');
+    toast((item.category === 'hotel' ? 'Added as a stay' : 'Added to Day ' + (state.libDay + 1)) +
+      ' — ' + money(total, 'INR') + (q.qty > 1 ? ' (' + money(rate.price, 'INR') + ' × ' + q.basis + ')' : ''));
   }
 
-  $('btnImportExcel').addEventListener('click', function () {
+  function openExcelPicker() {
     $('fileExcel').value = '';
     $('fileExcel').click();
-  });
+  }
+  $('btnImportExcel').addEventListener('click', openExcelPicker);
+  $('btnImportExcelEmpty').addEventListener('click', openExcelPicker);
 
   $('btnLibTemplate').addEventListener('click', function () {
     window.GGLibrary.downloadTemplate();
@@ -1135,31 +1568,51 @@
   $('fileExcel').addEventListener('change', function () {
     var f = $('fileExcel').files && $('fileExcel').files[0];
     if (!f) return;
-    $('libStatus').textContent = 'Reading…';
-    window.GGLibrary.readWorkbookFile(f).then(function (incoming) {
-      var destCount = Object.keys(incoming).length;
-      $('libStatus').textContent = '';
-      if (!destCount) {
-        toast('No usable rows found — each row needs at least a Name. Try the template.', true);
+    toast('Reading ' + f.name + '…');
+    window.GGLibrary.readWorkbookFile(f).then(function (result) {
+      var incoming = result.library;
+      var countries = Object.keys(incoming);
+      if (!countries.length) {
+        toast('No rates found in that file. Each sheet needs a row of price headings like "4 SEATER" or "Adult".', true);
         return;
       }
-      state.library = window.GGLibrary.mergeLibrary(state.library, incoming);
-      window.GGLibrary.saveLibrary(state.library);
-      state.libDest = Object.keys(incoming)[0];
+      state.library = window.GGLibrary.replaceDestinations(state.library, incoming);
+      if (!window.GGLibrary.saveLibrary(state.library)) {
+        toast('Imported, but this browser could not save the rates — they will be gone after a reload.', true);
+      }
+      state.libDest = countries[0];
+      state.libCity = '';
       renderLibraryUI();
-      var itemCount = Object.keys(incoming).reduce(function (a, d) { return a + incoming[d].length; }, 0);
-      toast('Imported ' + itemCount + ' item' + (itemCount === 1 ? '' : 's') +
-            ' across ' + destCount + ' destination' + (destCount === 1 ? '' : 's') + '.');
+      var summary = countries.map(function (c) { return c + ' (' + incoming[c].length + ')'; }).join(', ');
+      $('libStatus').textContent = 'Last import: ' + f.name + ' — ' + summary +
+        (result.skipped.length ? '. Skipped sheets without rates: ' + result.skipped.join(', ') + '.' : '.');
+      toast('Imported rates for ' + summary + '.');
     }).catch(function () {
-      $('libStatus').textContent = '';
-      toast('Could not read that file — is it a .xlsx or .csv?', true);
+      toast('Could not read that file — is it an Excel .xlsx file?', true);
     });
+  });
+
+  $('btnLibResetLocal').addEventListener('click', function () {
+    if (!confirm('Remove the imported cost sheets from this computer? Itineraries already made keep their prices.')) return;
+    state.library = {};
+    window.GGLibrary.saveLibrary(state.library);
+    $('libStatus').textContent = '';
+    renderLibraryUI();
+    toast('Cost sheets removed from this computer.');
   });
 
   $('libDestRow').addEventListener('click', function (e) {
     var b = e.target.closest('.lib-dest');
     if (!b) return;
     state.libDest = b.dataset.dest;
+    state.libCity = '';
+    renderLibraryUI();
+  });
+
+  $('libCityRow').addEventListener('click', function (e) {
+    var b = e.target.closest('.lib-city');
+    if (!b) return;
+    state.libCity = b.dataset.city;
     renderLibraryUI();
   });
 
@@ -1190,22 +1643,53 @@
   });
 
   $('libItems').addEventListener('click', function (e) {
-    var btn = e.target.closest('.lib-item-add');
-    if (!btn || btn.disabled) return;
+    var btn = e.target.closest('.lib-rate');
+    if (!btn) return;
     var items = filteredLibraryItems(state.library[state.libDest] || []);
     var item = items[+btn.dataset.itemIndex];
-    if (item) addLibraryItem(item);
+    var rate = item && item.rates[+btn.dataset.rateIndex];
+    if (rate) addLibraryItem(item, rate);
   });
 
   /* Shared by the render and the click handler so both agree on exactly
-     which items - and which index - are on screen right now. */
-  function filteredLibraryItems(items) {
-    var byCat = items.filter(function (it) { return it.category === state.libCat; });
-    var q = (state.libSearch || '').trim().toLowerCase();
-    if (!q) return byCat;
-    return byCat.filter(function (it) {
-      return ((it.name || '') + ' ' + (it.description || '')).toLowerCase().indexOf(q) > -1;
+     which items - and which index - are on screen right now. Every typed word
+     must appear somewhere in the row, so "pickup hanoi" or "airport 7 seater"
+     narrow it down regardless of order. */
+  function filteredLibraryItems(items, anyCategory) {
+    var query = normaliseSearch((state.libSearch || '').trim());
+    var words = query.split(/\s+/).filter(Boolean);
+    var matched = items.filter(function (it) {
+      if (state.libCity && it.city !== state.libCity) return false;
+      if (!anyCategory && state.libCat !== 'all' && it.category !== state.libCat) return false;
+      if (!words.length) return true;
+      var hay = normaliseSearch([it.name, it.description, it.meta, it.notes, it.city, it.service,
+                 window.GGLibrary.CAT_LABEL[it.category],
+                 (it.rates || []).map(function (r) { return r.label; }).join(' ')].join(' '));
+      return words.every(function (w) { return hay.indexOf(w) > -1; });
     });
+    if (!words.length) return matched;
+
+    // Best matches first: the exact phrase in the name, then names that
+    // start a word with each search word, then everything else - the sheet's
+    // own order is kept within each group.
+    function score(it) {
+      var name = normaliseSearch(it.name).trim();
+      if (name.indexOf(query) === 0) return 0;
+      if (name.indexOf(query) > -1) return 0.5;
+      if (words.every(function (w) { return new RegExp('(^|[^a-z0-9])' + w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).test(name); })) return 1;
+      return 2;
+    }
+    return matched
+      .map(function (it, i) { return { it: it, s: score(it), i: i }; })
+      .sort(function (a, b) { return a.s - b.s || a.i - b.i; })
+      .map(function (x) { return x.it; });
+  }
+
+  function normaliseSearch(s) {
+    return String(s || '').toLowerCase()
+      .replace(/[\u2013\u2014]/g, '-')
+      .replace(/pick[\s-]*up/g, 'pickup pick up')
+      .replace(/drop[\s-]*off/g, 'dropoff drop off');
   }
 
   var libSearchEl = $('libSearch');
@@ -1216,6 +1700,14 @@
     });
   }
 
+  // Per-person totals depend on the traveler count, so the note under the
+  // day chips follows Trip details as it's typed.
+  ['f-party', 'f-children'].forEach(function (id) {
+    $(id).addEventListener('input', function () {
+      if (document.body.dataset.view === 'trip') renderLibraryUI();
+    });
+  });
+
   /* ---- build navigation ----------------------------------------------------
      Overview / Itinerary / Activities / Quotation / Document - the whole
      tool used to read as one long form; grouping it like this, with the
@@ -1224,8 +1716,22 @@
   var buildTabs = $('buildTabs');
   var SECTION_PAGE_LABEL = { overview: 'Package summary', quotation: 'Cost summary', document: 'Before you' };
 
+  /* The two top-level tabs - 1 Itinerary, 2 Quotation - each own a few
+     sub-tabs. Opening a sub-tab always brings its parent tab along, so any
+     code that jumps straight to e.g. 'costsheet' needs to know nothing else. */
+  var lastSectionForMode = { itinerary: 'paste', quotation: 'costsheet' };
+
   function setBuildTab(name) {
+    var target = document.querySelector('.build-tab[data-section="' + name + '"]');
+    var mode = target ? target.dataset.mode : 'itinerary';
+    lastSectionForMode[mode] = name;
+    Array.prototype.slice.call(document.querySelectorAll('.mode-btn')).forEach(function (b) {
+      var on = b.dataset.mode === mode;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
     Array.prototype.slice.call(document.querySelectorAll('.build-tab')).forEach(function (b) {
+      b.hidden = b.dataset.mode !== mode;
       b.classList.toggle('active', b.dataset.section === name);
     });
     Array.prototype.slice.call(document.querySelectorAll('.build-section')).forEach(function (s) {
@@ -1269,6 +1775,14 @@
     node.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
+  var modeSwitch = $('modeSwitch');
+  if (modeSwitch) {
+    modeSwitch.addEventListener('click', function (e) {
+      var b = e.target.closest('.mode-btn');
+      if (b) setBuildTab(lastSectionForMode[b.dataset.mode]);
+    });
+  }
+
   if (buildTabs) {
     buildTabs.addEventListener('click', function (e) {
       var b = e.target.closest('.build-tab');
@@ -1291,7 +1805,7 @@
     var days = state.model ? state.model.days : [];
     if (!days || !days.length) {
       itinDaysEl.appendChild(el('div', 'itin-empty',
-        'No days yet — paste your plan below, or add a day and build it from the Activity Library.'));
+        'No days yet — paste the chat in the Paste chat tab, or add a day and build it from the cost sheet.'));
       return;
     }
     days.forEach(function (day, i) { itinDaysEl.appendChild(dayCardEl(day, i)); });
@@ -1472,7 +1986,7 @@
 
     var menu = el('div', 'itin-menu-pop itin-add-menu');
     menu.hidden = true;
-    [['new', 'Create new'], ['library', 'From Activity Library'],
+    [['new', 'Create new'], ['library', 'From cost sheet'],
      ['hotel', 'Hotel'], ['transfer', 'Transfer'], ['visa', 'Visa']].forEach(function (p) {
       var b = document.createElement('button'); b.type = 'button'; b.dataset.act = p[0]; b.textContent = p[1];
       menu.appendChild(b);
@@ -1498,7 +2012,7 @@
   function addActivity(dayIdx, kind) {
     var model = ensureModel();
     if (kind === 'library') {
-      setBuildTab('activities');
+      setBuildTab('costsheet');
       state.libDay = dayIdx;
       renderLibraryUI();
       if (libSearchEl) libSearchEl.focus();
@@ -1685,6 +2199,7 @@
         Array.prototype.slice.call(docEl.querySelectorAll('[data-path="meta.' + k + '"]'))
           .forEach(function (n) { n.textContent = state.model.meta[k]; });
       }
+      updateTripName();
       save();
     });
   });
@@ -1699,41 +2214,8 @@
 
   $('btnSample').addEventListener('click', function () {
     $('raw').value = SAMPLE;
-    FIELDS.forEach(function (k) { $('f-' + k).value = ''; });
-    $('f-preparedOn').value = 'Nov 2026';
-    $('f-preparedBy').value = 'Ghoom Gali Travel';
     $('raw').dispatchEvent(new Event('input'));
     generate();
-  });
-
-  $('btnReset').addEventListener('click', function () {
-    if (!confirm('Clear this itinerary and start a new one? This cannot be undone.')) return;
-    localStorage.removeItem(STORE);
-    state.model = null;
-    $('raw').value = '';
-    FIELDS.forEach(function (k) { $('f-' + k).value = ''; });
-    $('f-theme').value = '';
-    syncThemeSwatchUI();
-    $('f-layout').value = 'editorial';
-    syncLayoutPickerUI();
-    ['c-margin', 'c-gst', 'c-tcs', 'c-discount'].forEach(function (id) { $(id).value = ''; });
-    $('c-showMargin').checked = false;
-    refreshCosting();
-    // The library itself is reusable inventory, not part of one trip - it
-    // is deliberately not cleared here.
-    state.libDay = 0;
-    state.itinOpen = {};
-    renderLibraryUI();
-    renderItinerary();
-    renderDocLists();
-    docEl.textContent = '';
-    emptyState.hidden = false;
-    $('rawCount').textContent = '0 lines';
-    updateTripName();
-    resetHistory();
-    setBuildTab('overview');
-    toast('Cleared. Ready for the next trip.');
-    startOnboarding();
   });
 
   $('zoomIn').addEventListener('click', function () {
@@ -1900,26 +2382,9 @@
   setMobileTab('build');
   updateChromeForWidth();
 
-  /* Both the wizard and the split view start hidden in the HTML, so there is
-     no flash of the wrong one. The split view is revealed first because
-     restore() renders into it directly - pagination measures real
-     scrollHeight, and a hidden ancestor at that moment would corrupt it the
-     same way an inactive mobile tab did before. All of this runs
-     synchronously before the browser's first paint, so a fresh visitor
-     never actually sees the split view before the wizard replaces it. */
-  if (splitEl) splitEl.hidden = false;
-  if (mobileTabs) mobileTabs.hidden = false;
-  if (restore()) {
-    if (onboardEl) onboardEl.hidden = true;
-    setBuildTab('itinerary');
-  } else {
-    emptyState.hidden = false;
-    syncThemeSwatchUI();
-    syncLayoutPickerUI();
-    startOnboarding();
-  }
+  showHome();
   renderLibraryUI();
-  $('raw').dispatchEvent(new Event('input'));
+  migrateLegacy().then(renderHome);
 
   preloadLogos().then(function () {
     // Re-render once the brand logos are inlined as data URIs, so a trip

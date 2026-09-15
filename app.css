@@ -1,33 +1,33 @@
 /* ==========================================================================
    Ghoomgali Itinerary Maker - application chrome
-   A minimal, monochrome tool interface - black / white / grey, system sans
-   throughout, generous spacing. This governs the app shell only: the
-   itinerary document itself (doc.css) stays in Ghoom Gali's own brand
-   colours and type, since that is the deliverable, not the tool.
+   A tool for the agency's own team, styled the way Apple's apps are: light
+   neutral surfaces, hairline separators, system type, quiet controls. The
+   one strong colour is Ghoom Gali's Abyss, reserved for primary actions and
+   selected states. This governs the app shell only: the itinerary document
+   itself (doc.css) keeps Ghoom Gali's full brand palette and type, since
+   that is what the customer receives.
    ========================================================================== */
 
 :root{
-  --black:#1d1d1f; --gray-900:#1d1d1f; --gray-700:#48484a; --gray-500:#86868b;
-  --gray-300:#d2d2d7; --gray-200:#e5e5e7; --gray-100:#f5f5f7; --gray-50:#fafafa;
+  --black:#1d1d1f; --gray-900:#1d1d1f; --gray-700:#424245; --gray-600:#6e6e73; --gray-500:#86868b;
+  --gray-300:#d2d2d7; --gray-200:#e8e8ed; --gray-100:#f5f5f7; --gray-50:#fbfbfd;
   --white:#ffffff;
 
-  --ink:var(--black); --muted:var(--gray-500); --line:var(--gray-300);
+  --ink:var(--black); --muted:var(--gray-600); --line:var(--gray-300);
+  --hairline:rgba(0,0,0,.08);
   --surface:var(--gray-100);
 
-  /* Ghoom Gali Mint stands in for "blue" - the one accent every interactive
-     control uses (buttons, active tabs, focus rings, success). Everything
-     else - text, cards, backgrounds - stays black / white / grey. */
-  --accent:#41BF8F; --accent-dark:#2FA374; --accent-tint:#EAF7F1;
+  /* Abyss - Ghoom Gali's darkest primary - is the only accent in the tool:
+     primary buttons, the selected segment, active chips, focus rings. */
+  --cta:#0C2027; --cta-hover:#1C3A32;
+  --accent:var(--cta); --accent-dark:var(--cta); --accent-tint:#EEF1F2;
+  --focus:0 0 0 4px rgba(12,32,39,.14);
   --warn:#C4855A;
 
-  /* Ghoom Gali's own PRIMARY palette colour - Abyss, the darkest in the
-     system - used specifically for the call-to-action buttons themselves
-     (Generate, Download PDF). Everything else interactive stays Mint. */
-  --cta:#0C2027; --cta-hover:#1C3A32;
+  --font:-apple-system,BlinkMacSystemFont,'SF Pro Text','SF Pro Display','Helvetica Neue',Helvetica,Arial,sans-serif;
 
-  --font:-apple-system,BlinkMacSystemFont,'SF Pro Display','SF Pro Text','Helvetica Neue',Helvetica,Arial,sans-serif;
-
-  --topbar-h:56px; --bar-h:56px; --mobiletabs-h:46px;
+  --topbar-h:52px; --bar-h:48px; --mobiletabs-h:44px;
+  --gutter:clamp(20px,4vw,56px);
 }
 
 *{box-sizing:border-box}
@@ -39,149 +39,138 @@ body{
   overflow:hidden;
 }
 button{font-family:inherit; cursor:pointer}
-::selection{background:var(--black); color:#fff}
+::selection{background:rgba(12,32,39,.16)}
 
 /* An explicit display on .overlay, .toast and .item-tools would otherwise beat
    the UA rule for [hidden] and leave them permanently on screen. */
 [hidden]{display:none !important}
 
-/* Onboarding wizard -------------------------------------------------------
-   First visit only: full-page trip details, then the plan. The fields
-   themselves are the very same DOM nodes used in the sidebar afterwards -
-   moved in by JS, then moved back on Generate - so there is exactly one
-   copy of every input's state, never two to keep in sync.
+/* Screens -----------------------------------------------------------------
+   Three full-window screens share the topbar: the Itineraries list, the
+   New itinerary setup page, and the two-tab workspace. body[data-view]
+   decides which topbar controls apply. */
+body[data-view="home"] .tb-trip,
+body:not([data-view="trip"]) .tb-work{display:none !important}
 
-   Styled as a preview of the document itself, not a generic form: the same
-   Abyss background, Newsreader serif with a gold accent word, and the faint
-   circular arcs the itinerary's own cover page uses - so setting up a trip
-   already looks like the brand, the way the AI trip planners researched for
-   this all commit to a bold, particular look rather than a plain form. */
-.onboarding{
-  min-height:calc(100vh - var(--topbar-h)); background:#0C2027; color:#EEE9E3;
-  display:flex; flex-direction:column; align-items:center;
-  padding:56px 24px 100px; overflow-y:auto; position:relative;
+/* Itineraries list ---------------------------------------------------------- */
+.home{height:calc(100vh - var(--topbar-h)); overflow-y:auto; background:var(--white)}
+.home-head{
+  display:flex; align-items:flex-end; justify-content:space-between; gap:20px; flex-wrap:wrap;
+  padding:44px var(--gutter) 22px;
 }
-.onboard-arc{
-  position:absolute; border-radius:50%; border:1px solid rgba(65,191,143,.18);
-  pointer-events:none;
+.home-head h1{font-size:34px; font-weight:700; letter-spacing:-.022em; line-height:1.1; margin:0 0 6px}
+.home-head p{margin:0; font-size:15px; color:var(--muted)}
+.home-actions{display:flex; align-items:center; gap:8px; flex-wrap:wrap}
+.home-toolbar{padding:0 var(--gutter) 16px}
+.home-search{max-width:440px; margin-bottom:0}
+
+.trip-table{border-top:1px solid var(--hairline)}
+.trip-row{
+  display:grid; grid-template-columns:minmax(220px,2.2fr) 1.1fr 1fr 1fr 1.1fr 32px;
+  gap:18px; align-items:center; padding:13px var(--gutter);
+  border-bottom:1px solid var(--hairline); cursor:pointer; transition:background .12s;
 }
-.onboard-arc.a1{width:820px; height:820px; right:-320px; top:-280px}
-.onboard-arc.a2{width:1200px; height:1200px; left:-480px; bottom:-680px; border-color:rgba(65,191,143,.1)}
-
-.onboard-card{width:100%; max-width:600px; position:relative; z-index:1}
-.onboard-logo{width:112px; height:auto; display:block; margin:0 auto 40px}
-
-.onboard-progress{display:flex; justify-content:center; gap:7px; margin-bottom:32px}
-.onboard-dot{width:7px; height:7px; border-radius:50%; background:rgba(238,233,227,.24); transition:.2s}
-.onboard-dot.active{background:#E7C547; width:20px; border-radius:4px}
-
-.onboard-step{display:none}
-.onboard-step.active{display:block}
-.onboard-back{
-  background:none; border:none; padding:0; margin-bottom:18px;
-  font-size:13px; font-weight:500; color:rgba(238,233,227,.55); cursor:pointer;
+.trip-row:hover{background:var(--gray-100)}
+.trip-row:focus-visible{outline:none; background:var(--accent-tint)}
+.trip-row--head{
+  cursor:default; padding-top:9px; padding-bottom:9px; position:sticky; top:0; z-index:2;
+  background:rgba(255,255,255,.9); backdrop-filter:saturate(180%) blur(16px); -webkit-backdrop-filter:saturate(180%) blur(16px);
 }
-.onboard-back:hover{color:#E7C547}
+.trip-row--head:hover{background:rgba(255,255,255,.9)}
+.trip-row--head .trip-cell{font-size:12px; font-weight:500; color:var(--muted)}
+.trip-cell{font-size:13px; color:var(--gray-700); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.trip-customer b{display:block; font-size:14px; font-weight:600; color:var(--ink); overflow:hidden; text-overflow:ellipsis}
+.trip-customer span{display:block; font-size:12.5px; color:var(--muted); overflow:hidden; text-overflow:ellipsis}
+.trip-total{text-align:right; font-variant-numeric:tabular-nums}
+.trip-row .itin-activity-menu{justify-self:end}
+.trip-row .itin-menu-pop{min-width:230px}
+.trip-none{padding:28px var(--gutter); font-size:13px; color:var(--muted)}
 
-.onboard-head{margin-bottom:28px; text-align:center}
-.onboard-head h1{
-  font-family:'Newsreader',Georgia,'Times New Roman',serif; font-weight:300; font-size:38px;
-  letter-spacing:-.015em; line-height:1.15; margin:0 0 12px; color:#EEE9E3;
+.home-empty{text-align:center; max-width:380px; margin:12vh auto 0; padding:0 20px}
+.home-empty img{width:40px; height:40px; opacity:.9; margin-bottom:18px}
+.home-empty h2{font-size:22px; font-weight:650; letter-spacing:-.015em; margin:0 0 8px}
+.home-empty p{font-size:14px; color:var(--muted); line-height:1.55; margin:0 0 22px}
+
+/* New itinerary setup -------------------------------------------------------- */
+.setup{
+  display:grid; grid-template-columns:minmax(360px,1fr) minmax(400px,1.1fr);
+  height:calc(100vh - var(--topbar-h)); background:var(--white);
 }
-.onboard-head h1 em{font-style:italic; color:#E7C547}
-.onboard-head p{
-  font-size:14px; color:rgba(238,233,227,.62); line-height:1.55; margin:0 auto; max-width:46ch;
+.setup-col{overflow-y:auto; padding:48px var(--gutter) 64px; min-width:0}
+.setup-col--paste{background:var(--gray-100); border-left:1px solid var(--hairline)}
+.setup-eyebrow{font-size:13px; font-weight:600; color:var(--muted); margin:0 0 6px}
+.setup h1{font-size:34px; font-weight:700; letter-spacing:-.022em; line-height:1.12; margin:0 0 10px}
+.setup h2{font-size:22px; font-weight:650; letter-spacing:-.015em; line-height:1.2; margin:26px 0 10px}
+.setup-lede{font-size:14.5px; color:var(--muted); line-height:1.55; margin:0 0 28px; max-width:52ch}
+.setup-lede b{color:var(--ink); font-weight:600}
+.setup .field-group{margin-bottom:0}
+.setup .group-title, .setup .group-hint, .setup .setup-hide{display:none}
+.setup #raw{min-height:44vh; background:var(--white)}
+.setup-blank{display:block; margin:18px auto 0}
+
+/* Sheet (Agency settings) ------------------------------------------------------ */
+.sheet{
+  position:fixed; inset:0; z-index:95; display:grid; place-items:center; padding:24px;
+  background:rgba(0,0,0,.24); backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px);
 }
-.onboard-head p b{color:#EEE9E3; font-weight:600}
-
-.onboard-slot{margin-top:4px}
-/* The moved field-groups no longer need their own bottom margin here - the
-   page's own padding already gives it room to breathe. */
-.onboard-slot .field-group{margin-bottom:0}
-.onboard-slot .group-title,
-.onboard-slot .group-hint{display:none}
-
-/* Text that sits directly on the dark page (not inside a white input) needs
-   its own lighter palette - the sidebar's grey reads fine on white, not on
-   Abyss. Scoped to .onboarding so nothing outside the wizard is touched. */
-.onboarding .field span{color:rgba(238,233,227,.6)}
-.onboarding .field span em{color:rgba(238,233,227,.4)}
-.onboarding .theme-label{color:rgba(238,233,227,.6)}
-.onboarding .theme-hint{color:rgba(238,233,227,.5)}
-.onboarding .btn-link{color:#EEE9E3; text-decoration-color:rgba(238,233,227,.35)}
-.onboarding .btn-link:hover{color:#E7C547; text-decoration-color:#E7C547}
-.onboarding .counter{color:rgba(238,233,227,.45)}
-.onboarding .tips{border-top-color:rgba(238,233,227,.16)}
-.onboarding .tips summary{color:rgba(238,233,227,.7)}
-.onboarding .tips ul,
-.onboarding .tips p{color:rgba(238,233,227,.55)}
-.onboarding .tips li b{color:#EEE9E3}
-/* The dark CTA rule that makes sense on the light sidebar would disappear
-   against this same dark page - Mint takes over as the primary colour for
-   any button rendered inside the wizard specifically. */
-.onboarding .btn-primary{background:var(--accent); border-color:var(--accent)}
-.onboarding .btn-primary:hover{background:var(--accent-dark); border-color:var(--accent-dark)}
-
-.onboard-actions{display:flex; align-items:center; justify-content:flex-end; margin-top:24px}
-.btn-onboard{width:auto; padding:13px 30px}
-
-@media (max-width:600px){
-  .onboarding{padding:40px 20px 60px}
-  .onboard-logo{width:92px; margin-bottom:32px}
-  .onboard-head h1{font-size:28px}
+.sheet-card{
+  width:100%; max-width:620px; max-height:calc(100vh - 48px); overflow-y:auto;
+  background:var(--white); border-radius:16px; padding:28px 28px 0;
+  box-shadow:0 0 0 .5px rgba(0,0,0,.08), 0 24px 70px rgba(0,0,0,.22);
+}
+.sheet-card h2{font-size:22px; font-weight:650; letter-spacing:-.015em; margin:0 0 6px}
+.sheet-foot{
+  position:sticky; bottom:0; display:flex; justify-content:flex-end; gap:8px;
+  margin:22px -28px 0; padding:14px 28px; background:rgba(255,255,255,.94); border-top:1px solid var(--hairline);
 }
 
 /* Top bar --------------------------------------------------------------- */
 .topbar{
-  height:var(--topbar-h); background:var(--black); color:var(--white);
-  display:flex; align-items:center; gap:12px; padding:0 20px;
+  height:var(--topbar-h); position:relative; z-index:30;
+  background:rgba(251,251,253,.86); backdrop-filter:saturate(180%) blur(20px); -webkit-backdrop-filter:saturate(180%) blur(20px);
+  border-bottom:1px solid var(--hairline); color:var(--ink);
+  display:flex; align-items:center; gap:10px; padding:0 20px;
   overflow-x:auto; scrollbar-width:none;
 }
 .topbar::-webkit-scrollbar{display:none}
-.topbar-logo{height:20px; width:auto; display:block; opacity:.95; flex:none}
-.topbar-divider{width:1px; height:16px; background:rgba(255,255,255,.16); flex:none}
+.topbar-logo{height:22px; width:auto; display:block; flex:none}
+.topbar-divider{width:1px; height:18px; background:var(--hairline); flex:none}
+.topbar-back{
+  flex:none; display:flex; align-items:center; gap:4px; white-space:nowrap;
+  background:none; border:none; border-radius:8px; padding:6px 10px 6px 6px;
+  font-size:13px; font-weight:500; color:var(--ink); transition:background .12s;
+}
+.topbar-back span{font-size:20px; line-height:1; margin-top:-2px}
+.topbar-back:hover{background:rgba(0,0,0,.05)}
 .trip-name{
-  font-size:13px; font-weight:600; letter-spacing:-.01em; color:rgba(255,255,255,.9);
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:220px; flex:none;
+  font-size:13px; font-weight:600; letter-spacing:-.01em; color:var(--ink);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:280px; flex:none;
 }
 .topbar-spacer{flex:1; min-width:12px}
 .save-state{
-  font-size:12px; font-weight:500; color:rgba(255,255,255,.5);
+  font-size:12px; color:var(--muted);
   opacity:0; transition:opacity .3s; display:flex; align-items:center; gap:6px; flex:none;
-}
-.save-state::before{
-  content:""; width:5px; height:5px; border-radius:50%; background:var(--accent); flex:none;
 }
 .save-state.on{opacity:1}
 .history-btns{display:flex; gap:2px; flex:none}
-/* Neutral default (used on the white preview bar); the topbar override right
-   below swaps it for a version that reads on the dark bar instead. */
 .btn-icon{
   background:var(--white); border:1px solid var(--gray-300); color:var(--gray-700);
-  font-size:13px; width:28px; height:28px; border-radius:8px; line-height:1; transition:.15s; flex:none;
+  font-size:13px; width:28px; height:28px; border-radius:7px; line-height:1; transition:.12s; flex:none;
   display:grid; place-items:center;
 }
-.btn-icon:hover{border-color:var(--accent); color:var(--accent-dark)}
+.btn-icon:hover{background:var(--gray-100)}
 .btn-icon:disabled{opacity:.35; cursor:not-allowed}
-.topbar .btn-icon{
-  background:transparent; border-color:rgba(255,255,255,.18); color:rgba(255,255,255,.75);
-}
-.topbar .btn-icon:hover{background:rgba(255,255,255,.1); color:var(--white); border-color:rgba(255,255,255,.18)}
-.topbar .btn-icon:disabled{opacity:.3}
-.btn-ghost{
-  background:transparent; border:1px solid rgba(255,255,255,.22); color:var(--white);
-  font-size:12.5px; font-weight:500; padding:7px 14px; border-radius:999px; transition:.15s; flex:none;
-  white-space:nowrap;
-}
-.btn-ghost:hover{background:rgba(255,255,255,.1); border-color:rgba(65,191,143,.6)}
+.topbar .btn-icon{background:transparent; border-color:transparent; font-size:15px}
+.topbar .btn-icon:hover{background:rgba(0,0,0,.05)}
+.topbar .btn-icon:disabled{background:transparent; opacity:.3}
 .topbar .dropdown{flex:none}
-.topbar .btn-outline{white-space:nowrap}
 
-/* Preview-panel controls rendered inside the dark topbar need light text -
-   the shared .btn-outline/.dropdown-menu rules elsewhere assume a white
-   surface, so this scopes just enough to read correctly here. */
-.topbar .btn-outline{background:transparent; color:var(--white); border-color:rgba(255,255,255,.28)}
-.topbar .btn-outline:hover{background:rgba(255,255,255,.1); border-color:var(--accent)}
+/* Apple's secondary button: a soft grey fill, no border. */
+.btn-quiet{
+  flex:none; background:rgba(0,0,0,.05); border:none; color:var(--ink); white-space:nowrap;
+  font-size:13px; font-weight:500; padding:8px 16px; border-radius:999px; transition:background .12s;
+}
+.btn-quiet:hover{background:rgba(0,0,0,.09)}
 
 /* Split layout ------------------------------------------------------------ */
 .split{
@@ -189,29 +178,47 @@ button{font-family:inherit; cursor:pointer}
   height:calc(100vh - var(--topbar-h));
 }
 .panel{min-width:0; min-height:0; display:flex; flex-direction:column}
-.panel-input{background:var(--white); border-right:1px solid var(--gray-200)}
-.panel-scroll{overflow-y:auto; padding:22px 26px 64px; scrollbar-width:thin}
+.panel-input{background:var(--white); border-right:1px solid var(--hairline)}
+.panel-scroll{overflow-y:auto; padding:24px 24px 64px; scrollbar-width:thin}
+
+/* Two top-level tabs: 1 Itinerary, 2 Quotation ----------------------------
+   An Apple segmented control. */
+.mode-switch{
+  flex:none; display:grid; grid-template-columns:1fr 1fr; gap:2px;
+  margin:14px 20px 4px; padding:2px; border-radius:9px; background:rgba(118,118,128,.12);
+}
+.mode-btn{
+  display:flex; align-items:center; justify-content:center; gap:7px;
+  padding:6px 10px; border:none; border-radius:7px; background:transparent;
+  font-family:var(--font); font-size:13px; font-weight:500; color:var(--ink); transition:background .15s, box-shadow .15s;
+}
+.mode-btn.active{background:var(--white); font-weight:600; box-shadow:0 1px 3px rgba(0,0,0,.12), 0 0 0 .5px rgba(0,0,0,.04)}
+.mode-n{
+  flex:none; width:17px; height:17px; border-radius:50%; display:grid; place-items:center;
+  font-size:10.5px; font-weight:600; background:rgba(0,0,0,.08); color:var(--gray-700);
+}
+.mode-btn.active .mode-n{background:var(--cta); color:var(--white)}
 
 /* Build navigation ------------------------------------------------------- */
 .build-tabs{
-  flex:none; display:flex; gap:2px; padding:10px 18px 0; background:var(--white);
-  border-bottom:1px solid var(--gray-200); overflow-x:auto; scrollbar-width:none;
+  flex:none; display:flex; gap:2px; padding:4px 14px 0; background:var(--white);
+  border-bottom:1px solid var(--hairline); overflow-x:auto; scrollbar-width:none;
 }
 .build-tabs::-webkit-scrollbar{display:none}
 .build-tab{
-  flex:none; background:none; border:none; padding:9px 13px 12px;
-  font-size:13px; font-weight:600; color:var(--muted); border-bottom:2px solid transparent;
+  flex:none; background:none; border:none; padding:9px 10px 11px;
+  font-size:13px; font-weight:500; color:var(--muted); border-bottom:2px solid transparent;
   white-space:nowrap; transition:.15s;
 }
 .build-tab:hover{color:var(--ink)}
-.build-tab.active{color:var(--black); border-bottom-color:var(--cta)}
+.build-tab.active{color:var(--ink); font-weight:600; border-bottom-color:var(--cta)}
 .build-section{display:none}
 .build-section.active{display:block}
 
 /* Form ---------------------------------------------------------------- */
 .field-group{margin-bottom:34px}
 .group-title{
-  font-family:var(--font); font-weight:650; font-size:19px;
+  font-family:var(--font); font-weight:650; font-size:20px;
   margin:0 0 5px; letter-spacing:-.015em; color:var(--black);
 }
 .group-hint{margin:0 0 16px; font-size:12.5px; color:var(--muted); line-height:1.55}
@@ -223,21 +230,22 @@ button{font-family:inherit; cursor:pointer}
   font-size:11.5px; font-weight:500; color:var(--muted);
 }
 .field span em{font-style:normal; opacity:.7}
-.field input{
+.field input, .field textarea{
   font-family:var(--font); font-size:14px; color:var(--ink);
-  padding:10px 12px; border:1px solid var(--gray-300); border-radius:9px;
-  background:var(--white); transition:.15s; width:100%;
+  padding:9px 12px; border:1px solid var(--gray-300); border-radius:8px;
+  background:var(--white); transition:border-color .15s, box-shadow .15s; width:100%;
 }
-.field input:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(65,191,143,.16)}
-.field input::placeholder{color:var(--gray-500)}
+.field textarea{resize:vertical; line-height:1.55}
+.field input:focus, .field textarea:focus{outline:none; border-color:var(--cta); box-shadow:var(--focus)}
+.field input::placeholder, .field textarea::placeholder{color:var(--gray-500)}
 
 #raw{
   width:100%; min-height:290px; resize:vertical;
   font-family:var(--font); font-size:13px; line-height:1.7; color:var(--ink);
-  padding:14px; border:1px solid var(--gray-300); border-radius:10px; background:var(--gray-50);
+  padding:14px; border:1px solid var(--gray-300); border-radius:10px; background:var(--white);
   transition:.15s;
 }
-#raw:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(65,191,143,.16); background:var(--white)}
+#raw:focus{outline:none; border-color:var(--accent); box-shadow:var(--focus); background:var(--white)}
 #raw::placeholder{color:var(--gray-500)}
 
 .raw-actions{display:flex; align-items:center; justify-content:space-between; margin:9px 0 16px}
@@ -246,24 +254,24 @@ button{font-family:inherit; cursor:pointer}
   font-size:12.5px; font-weight:500; text-decoration:underline; text-underline-offset:3px;
   text-decoration-color:var(--gray-300);
 }
-.btn-link:hover{text-decoration-color:var(--accent)}
+.btn-link:hover{text-decoration-color:var(--ink)}
 .counter{font-size:11.5px; color:var(--muted)}
 
 /* Buttons ------------------------------------------------------------- */
 .btn-primary{
   width:100%; background:var(--cta); color:var(--white); border:1px solid var(--cta);
-  font-size:14.5px; font-weight:590; letter-spacing:-.005em;
-  padding:14px 18px; border-radius:999px; transition:.15s;
+  font-size:14px; font-weight:500; letter-spacing:-.005em;
+  padding:12px 18px; border-radius:999px; transition:background .15s;
 }
 .btn-primary:hover{background:var(--cta-hover); border-color:var(--cta-hover)}
 .btn-primary:active{transform:scale(.985)}
 .btn-primary:disabled{opacity:.35; cursor:not-allowed}
-.btn-sm{width:auto; font-size:13px; padding:8px 16px; font-weight:590}
+.btn-sm{width:auto; flex:none; font-size:13px; padding:8px 16px; font-weight:500; white-space:nowrap}
 .btn-outline{
   background:var(--white); color:var(--black); border:1px solid var(--gray-300);
-  border-radius:999px; transition:.15s; font-weight:590;
+  border-radius:999px; transition:.15s; font-weight:500;
 }
-.btn-outline:hover{border-color:var(--accent); background:var(--accent-tint)}
+.btn-outline:hover{background:var(--gray-100)}
 
 /* Costing panel --------------------------------------------------------- */
 .grid-3{display:grid; grid-template-columns:repeat(3,1fr); gap:10px}
@@ -309,9 +317,24 @@ button{font-family:inherit; cursor:pointer}
 .lib-status{font-size:11.5px; color:var(--accent-dark)}
 
 .lib-empty{
-  margin-top:14px; padding:18px; border:1px dashed var(--gray-300); border-radius:10px;
-  font-size:12.5px; color:var(--muted); text-align:center; line-height:1.6;
+  margin-top:14px; padding:26px 22px; border-radius:14px; background:var(--gray-100);
+  font-size:13px; color:var(--muted); text-align:center; line-height:1.55;
+  display:flex; flex-direction:column; align-items:center; gap:8px;
 }
+.lib-empty b{font-size:15px; font-weight:600; color:var(--ink)}
+.lib-empty span{max-width:40ch}
+.lib-empty .btn-primary{margin-top:8px}
+.lib-city-row{display:flex; gap:6px; flex-wrap:wrap; margin-top:8px}
+.lib-city{
+  font-size:12px; font-weight:500; padding:5px 11px; border-radius:999px; border:none;
+  background:transparent; color:var(--gray-700); transition:background .12s;
+}
+.lib-city:hover{background:var(--gray-100)}
+.lib-city.active{background:var(--accent-tint); color:var(--ink); font-weight:600}
+.lib-pax{margin:-4px 0 12px; font-size:11.5px; color:var(--muted); line-height:1.5}
+.lib-none{padding:16px 2px; font-size:12.5px; color:var(--muted)}
+.lib-remove{color:#c0392b}
+.lib-status{margin:10px 0 0; font-size:11.5px; color:var(--muted); line-height:1.5}
 
 .lib-dest-row{display:flex; gap:6px; flex-wrap:wrap; margin-top:16px}
 .lib-dest{
@@ -319,17 +342,18 @@ button{font-family:inherit; cursor:pointer}
   padding:7px 13px; border-radius:999px; border:1px solid var(--gray-300); background:var(--white);
   color:var(--gray-700); cursor:pointer; transition:.14s;
 }
-.lib-dest:hover{border-color:var(--accent)}
+.lib-dest:hover{background:var(--gray-100)}
 .lib-dest.active{background:var(--accent); border-color:var(--accent); color:var(--white)}
 
 .lib-body{margin-top:14px}
-.lib-cat-tabs{display:flex; gap:4px; border-bottom:1px solid var(--gray-200); margin-bottom:14px}
+.lib-cat-tabs{display:flex; gap:4px; overflow-x:auto; scrollbar-width:none; border-bottom:1px solid var(--gray-200); margin-bottom:14px}
 .lib-tab{
   font-size:12.5px; font-weight:500; color:var(--muted);
-  padding:8px 4px; margin-right:16px; border-bottom:2px solid transparent; background:none;
+  padding:8px 4px; margin-right:14px; border:none; border-bottom:2px solid transparent; background:none;
+  font-family:var(--font); cursor:pointer; white-space:nowrap;
 }
-.lib-tab.active{color:var(--accent-dark); font-weight:600; border-bottom-color:var(--accent)}
-.lib-tab .lib-tab-n{font-size:11px; color:var(--gray-500); margin-left:3px; font-weight:400}
+.lib-tab.active{color:var(--ink); font-weight:600; border-bottom-color:var(--cta)}
+.lib-tab .lib-tab-n{font-size:11px; color:var(--gray-500); margin-left:4px; font-weight:400}
 
 .lib-day-target{display:flex; align-items:center; gap:9px; flex-wrap:wrap; margin-bottom:12px}
 .lib-day-label{font-size:11.5px; font-weight:500; color:var(--muted)}
@@ -338,13 +362,13 @@ button{font-family:inherit; cursor:pointer}
   font-size:12px; font-weight:500; padding:6px 12px; border-radius:999px;
   border:1px solid var(--gray-300); background:var(--white); color:var(--gray-700); cursor:pointer; transition:.14s;
 }
-.lib-day-chip:hover{border-color:var(--accent)}
+.lib-day-chip:hover{background:var(--gray-100)}
 .lib-day-chip.active{background:var(--accent); border-color:var(--accent); color:var(--white); font-weight:600}
 .lib-day-add{
   font-size:12px; font-weight:500; padding:6px 12px; border-radius:999px;
   border:1px dashed var(--gray-300); background:none; color:var(--gray-700); cursor:pointer;
 }
-.lib-day-add:hover{border-color:var(--accent); background:var(--accent-tint); color:var(--accent-dark)}
+.lib-day-add:hover{background:var(--gray-100); color:var(--ink)}
 
 /* A compact route-style preview of what's already in the selected day -
    dots on a connecting line, the same shape as the reference's route
@@ -369,12 +393,30 @@ button{font-family:inherit; cursor:pointer}
 }
 .lib-day-plan-footer b{color:var(--ink); font-weight:600; font-variant-numeric:tabular-nums}
 
-.lib-items{max-height:340px; overflow-y:auto; display:flex; flex-direction:column; gap:8px}
+.lib-items{max-height:520px; overflow-y:auto; display:flex; flex-direction:column; gap:8px; margin-bottom:18px; padding-right:2px}
+.lib-count{font-size:11.5px; color:var(--muted); padding:0 2px}
 .lib-item{
-  display:flex; align-items:center; gap:11px; padding:10px 12px;
-  border:1px solid var(--gray-200); border-radius:11px; background:var(--white); transition:.14s;
+  display:flex; flex-direction:column; gap:9px; padding:11px 12px;
+  border:1px solid var(--gray-200); border-radius:12px; background:var(--white); transition:.14s;
 }
-.lib-item:hover{border-color:var(--gray-500)}
+.lib-item-head{min-width:0}
+.lib-item-note{font-size:11.5px; color:var(--gray-700); margin-top:3px}
+.lib-item-expired{
+  display:inline-block; margin-top:5px; font-size:11px; font-weight:500; line-height:1.4;
+  color:#8a4b1f; background:#fbf1e6; border-radius:6px; padding:3px 7px;
+}
+.lib-rates{display:flex; flex-wrap:wrap; gap:6px}
+.lib-rate{
+  display:inline-flex; align-items:baseline; gap:6px; padding:6px 10px; border-radius:999px;
+  border:1px solid var(--gray-300); background:var(--white); font-family:var(--font); transition:.12s;
+}
+.lib-rate:hover{background:var(--cta); border-color:var(--cta)}
+.lib-rate:hover .lib-rate-label, .lib-rate:hover .lib-rate-price{color:var(--white)}
+.lib-rate:active{transform:scale(.97)}
+.lib-rate-label{font-size:11.5px; color:var(--muted)}
+.lib-rate-price{font-size:12.5px; font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums}
+.lib-day-plan-title{font-size:12px; font-weight:600; color:var(--ink); margin:0 0 10px}
+.lib-item:hover{border-color:var(--gray-300); background:var(--gray-50)}
 .lib-item-thumb{
   flex:none; width:42px; height:42px; border-radius:10px; overflow:hidden;
   background-color:var(--gray-100); background-position:center; background-size:cover; background-repeat:no-repeat;
@@ -384,16 +426,19 @@ button{font-family:inherit; cursor:pointer}
 .lib-item-name{font-size:13px; font-weight:600; color:var(--ink); line-height:1.35}
 .lib-item-meta{font-size:11.5px; color:var(--muted); margin-top:2px; line-height:1.4}
 .lib-item-price{
-  font-size:11.5px; font-variant-numeric:tabular-nums; color:var(--gray-700); margin-top:3px;
+  flex:none; text-align:right; font-size:13.5px; font-weight:650; font-variant-numeric:tabular-nums;
+  color:var(--ink); white-space:nowrap;
 }
+.lib-item-price.is-empty{font-size:11.5px; font-weight:500; color:var(--gray-500)}
+.lib-item-price-note{display:block; font-size:10.5px; font-weight:500; color:var(--muted)}
 .lib-item-add{
-  flex:none; width:30px; height:30px; border-radius:50%; border:none;
-  background:var(--accent); color:var(--white); font-size:17px; line-height:1;
+  flex:none; width:28px; height:28px; border-radius:50%; border:none;
+  background:var(--cta); color:var(--white); font-size:17px; line-height:1;
   cursor:pointer; transition:.14s; display:grid; place-items:center;
 }
-.lib-item-add:hover{background:var(--accent-dark)}
+.lib-item-add:hover{background:var(--cta-hover)}
 .lib-item-add:disabled{background:var(--gray-300); color:var(--gray-500); cursor:not-allowed}
-.lib-item.added{border-color:var(--accent)}
+.lib-item.added{border-color:var(--cta)}
 
 /* Layout picker ------------------------------------------------------------ */
 .layout-picker{display:grid; grid-template-columns:1fr 1fr; gap:9px}
@@ -403,9 +448,8 @@ button{font-family:inherit; cursor:pointer}
 }
 .layout-opt b{display:block; font-size:12.5px; font-weight:600; color:var(--ink)}
 .layout-opt em{display:block; font-style:normal; font-size:11px; color:var(--muted); margin-top:3px; line-height:1.4}
-.layout-opt:hover{border-color:var(--accent)}
-.layout-opt.active{border-color:var(--accent); background:var(--accent-tint)}
-.layout-opt.active b{color:var(--accent-dark)}
+.layout-opt:hover{background:var(--gray-50)}
+.layout-opt.active{border-color:var(--cta); box-shadow:inset 0 0 0 1px var(--cta)}
 
 /* Theme picker ---------------------------------------------------------- */
 .theme-picker{display:flex; align-items:center; gap:10px; margin-top:16px}
@@ -425,7 +469,7 @@ button{font-family:inherit; cursor:pointer}
 .swatch--chai{background:#C4855A}
 .swatch--lantern{background:#E7C547}
 .swatch.active{border-color:var(--accent-dark)}
-.swatch--auto.active{border-color:var(--accent); color:var(--accent-dark); font-weight:600}
+.swatch--auto.active{border-color:var(--cta); color:var(--ink); font-weight:600}
 .swatch:hover{transform:scale(1.1)}
 .theme-hint{margin-top:8px}
 
@@ -435,7 +479,7 @@ button{font-family:inherit; cursor:pointer}
   cursor:pointer; font-size:12.5px; font-weight:500; color:var(--gray-700); list-style:none;
 }
 .tips summary::-webkit-details-marker{display:none}
-.tips summary::before{content:"+ "; color:var(--accent-dark)}
+.tips summary::before{content:"+ "; color:var(--muted)}
 .tips[open] summary::before{content:"– "}
 .tips ul{margin:12px 0 8px; padding-left:18px; font-size:12.5px; color:var(--muted); line-height:1.8}
 .tips li b{color:var(--ink); font-weight:600}
@@ -448,7 +492,7 @@ button{font-family:inherit; cursor:pointer}
 /* Preview bar --------------------------------------------------------- */
 .panel-preview{background:var(--gray-100)}
 .preview-bar{
-  height:var(--bar-h); flex:none; background:var(--white); border-bottom:1px solid var(--gray-200);
+  height:var(--bar-h); flex:none; background:var(--white); border-bottom:1px solid var(--hairline);
   display:flex; align-items:center; justify-content:space-between; padding:0 18px; gap:12px;
 }
 .preview-bar-left{display:flex; align-items:baseline; gap:10px; min-width:0}
@@ -465,21 +509,22 @@ button{font-family:inherit; cursor:pointer}
   width:26px; height:26px; border:1px solid var(--gray-300); background:var(--white);
   border-radius:7px; color:var(--gray-700); font-size:15px; line-height:1;
 }
-.zoom button:hover{border-color:var(--accent); color:var(--accent-dark)}
+.zoom button:hover{background:var(--gray-100)}
 #zoomLabel{font-size:11.5px; color:var(--muted); width:36px; text-align:center}
 
 /* Dropdown ------------------------------------------------------------ */
 .dropdown{position:relative}
 .dropdown-menu{
   position:absolute; right:0; top:calc(100% + 8px); width:290px; z-index:50;
-  background:var(--white); border:1px solid var(--gray-200); border-radius:13px;
-  box-shadow:0 18px 44px rgba(0,0,0,.14); padding:6px; overflow:hidden;
+  background:rgba(255,255,255,.96); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
+  border:none; border-radius:12px; padding:5px; overflow:hidden;
+  box-shadow:0 0 0 .5px rgba(0,0,0,.12), 0 12px 36px rgba(0,0,0,.16);
 }
 .dropdown-menu button{
   display:block; width:100%; text-align:left; background:none; border:none;
   padding:10px 12px; border-radius:9px; transition:.14s;
 }
-.dropdown-menu button:hover{background:var(--accent-tint)}
+.dropdown-menu button:hover{background:var(--gray-100)}
 .dropdown-menu b{display:block; font-size:13px; font-weight:600; color:var(--ink)}
 .dropdown-menu em{display:block; font-style:normal; font-size:11.5px; color:var(--muted); margin-top:1px}
 .dropdown-menu hr{border:none; border-top:1px solid var(--gray-200); margin:6px 8px}
@@ -511,25 +556,23 @@ button{font-family:inherit; cursor:pointer}
   font-size:12px; font-weight:500;
   padding:6px 9px; border-radius:6px; transition:.14s;
 }
-.item-tools button:hover{background:var(--accent); color:var(--white)}
+.item-tools button:hover{background:rgba(255,255,255,.14); color:var(--white)}
 .item-tools button.danger:hover{background:#ff453a; color:#fff}
 
 /* Toast --------------------------------------------------------------- */
 .toast{
   position:fixed; left:50%; bottom:26px; transform:translate(-50%,14px);
-  background:var(--black); color:var(--white); padding:12px 20px; border-radius:999px;
+  background:rgba(29,29,31,.92); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
+  color:var(--white); padding:11px 18px; border-radius:999px; max-width:calc(100vw - 32px);
   font-size:13px; font-weight:500; z-index:90; opacity:0; transition:.28s; pointer-events:none;
-  box-shadow:0 14px 34px rgba(0,0,0,.3); display:flex; align-items:center; gap:9px;
+  box-shadow:0 12px 30px rgba(0,0,0,.22); display:flex; align-items:center; gap:9px;
 }
 .toast.on{opacity:1; transform:translate(-50%,0)}
-.toast::before{
-  content:""; width:7px; height:7px; border-radius:50%; background:var(--accent); flex:none;
-}
-.toast.warn::before{background:var(--warn)}
+.toast.warn::before{content:""; width:7px; height:7px; border-radius:50%; background:var(--warn); flex:none}
 
 /* Progress overlay ---------------------------------------------------- */
 .overlay{
-  position:fixed; inset:0; background:rgba(0,0,0,.55); backdrop-filter:blur(6px);
+  position:fixed; inset:0; background:rgba(0,0,0,.28); backdrop-filter:blur(6px);
   z-index:100; display:grid; place-items:center;
 }
 .overlay-card{
@@ -581,7 +624,7 @@ button{font-family:inherit; cursor:pointer}
 .itin-items{display:flex; flex-direction:column; gap:6px; margin-bottom:8px}
 .itin-activity{border:1px solid var(--gray-200); border-radius:10px; background:var(--gray-50); transition:.15s}
 .itin-activity:hover{border-color:var(--gray-300)}
-.itin-activity.open{border-color:var(--accent); background:var(--white)}
+.itin-activity.open{border-color:var(--gray-300); background:var(--white); box-shadow:0 2px 10px rgba(0,0,0,.05)}
 .itin-activity.dragging{opacity:.4}
 .itin-activity.drag-over{border-color:var(--accent-dark); box-shadow:0 0 0 2px var(--accent-tint)}
 
@@ -610,7 +653,7 @@ button{font-family:inherit; cursor:pointer}
   transition:.15s; resize:vertical;
 }
 .itin-field input:focus, .itin-field textarea:focus{
-  outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(65,191,143,.16);
+  outline:none; border-color:var(--accent); box-shadow:var(--focus);
 }
 .itin-photo-field{flex-direction:row; align-items:center; justify-content:space-between}
 
@@ -619,7 +662,7 @@ button{font-family:inherit; cursor:pointer}
   width:100%; text-align:left; background:none; border:1px dashed var(--gray-300); border-radius:9px;
   color:var(--gray-700); font-size:12.5px; font-weight:500; padding:9px 12px; transition:.15s;
 }
-.itin-add-btn:hover, #btnAddDay:hover{border-color:var(--accent); background:var(--accent-tint); color:var(--accent-dark)}
+.itin-add-btn:hover, #btnAddDay:hover{background:var(--gray-100); color:var(--ink)}
 #btnAddDay{text-align:center; margin-bottom:20px}
 
 /* Contextual ••• menus - shared by day cards and activity rows, and by the
@@ -641,7 +684,7 @@ button{font-family:inherit; cursor:pointer}
   display:block; width:100%; text-align:left; background:none; border:none;
   padding:8px 10px; border-radius:7px; font-size:12.5px; color:var(--ink); transition:.12s;
 }
-.itin-menu-pop button:hover{background:var(--accent-tint)}
+.itin-menu-pop button:hover{background:var(--gray-100)}
 .itin-menu-pop button.danger{color:#c0392b}
 .itin-menu-pop button.danger:hover{background:#fdecea}
 
@@ -649,15 +692,18 @@ button{font-family:inherit; cursor:pointer}
 
 /* A brief highlight when a Build-panel click scrolls the preview to the
    matching page or card, so the connection between the two is visible. */
-#doc .flash-highlight{outline:2px solid var(--accent); outline-offset:3px; border-radius:4px}
+#doc .flash-highlight{outline:2px solid #41BF8F; outline-offset:3px; border-radius:4px}
 
 /* Activity library search -------------------------------------------------- */
 .lib-search{
-  width:100%; margin-bottom:12px; font-family:var(--font); font-size:13px; color:var(--ink);
-  padding:9px 12px; border:1px solid var(--gray-300); border-radius:9px; background:var(--white);
+  width:100%; margin-bottom:12px; font-family:var(--font); font-size:15px; color:var(--ink);
+  padding:12px 14px 12px 38px; border:1px solid var(--gray-300); border-radius:11px;
+  background:var(--white) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%2386868b' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='7' cy='7' r='5'/%3E%3Cpath d='m11 11 3.5 3.5'/%3E%3C/svg%3E") no-repeat 13px center;
   transition:.15s;
 }
-.lib-search:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(65,191,143,.16)}
+.lib-manage{margin-top:18px}
+.lib-manage .lib-toolbar{margin-top:10px}
+.lib-search:focus{outline:none; border-color:var(--cta); box-shadow:var(--focus)}
 
 /* Quotation summary -------------------------------------------------------- */
 .quo-summary{
@@ -682,9 +728,12 @@ button{font-family:inherit; cursor:pointer}
   cursor:pointer; font-size:12.5px; font-weight:500; color:var(--gray-700); list-style:none;
 }
 .quo-advanced summary::-webkit-details-marker{display:none}
-.quo-advanced summary::before{content:"+ "; color:var(--accent-dark)}
+.quo-advanced summary::before{content:"+ "; color:var(--muted)}
 .quo-advanced[open] summary::before{content:"– "}
 .quo-margin-field{margin-top:14px}
+
+.doc-defaults-hint{margin-top:18px}
+.doc-defaults-hint .btn-link{font-size:12.5px}
 
 /* Document lists ------------------------------------------------------------ */
 .doc-list{display:flex; flex-direction:column; gap:7px; margin-top:12px; margin-bottom:10px}
@@ -694,7 +743,7 @@ button{font-family:inherit; cursor:pointer}
   flex:1; font-family:var(--font); font-size:13px; color:var(--ink);
   padding:9px 11px; border:1px solid var(--gray-300); border-radius:8px; background:var(--white); transition:.15s;
 }
-.doc-list-row input:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(65,191,143,.16)}
+.doc-list-row input:focus{outline:none; border-color:var(--cta); box-shadow:var(--focus)}
 .doc-list-del{
   flex:none; width:28px; height:28px; border-radius:50%; border:none; background:var(--gray-100);
   color:var(--gray-500); font-size:15px; line-height:1;
@@ -710,7 +759,7 @@ button{font-family:inherit; cursor:pointer}
   flex:1; padding:0; height:var(--mobiletabs-h); font-size:14px; font-weight:600;
   color:var(--gray-500); background:none; border:none; border-bottom:2px solid transparent;
 }
-.mobile-tab.active{color:var(--black); border-bottom-color:var(--accent)}
+.mobile-tab.active{color:var(--ink); border-bottom-color:var(--cta)}
 
 /* Deliberately NOT inside a width-based media query. PDF export renders each
    page through html2canvas with an explicit internal width of 794px - under
@@ -741,7 +790,7 @@ button{font-family:inherit; cursor:pointer}
   /* The primary action stays reachable no matter how far the form has
      scrolled - the same persistent bottom button the reference app uses. */
   #btnGenerate{
-    position:fixed; left:16px; right:16px; bottom:16px; z-index:45;
+    position:fixed; left:16px; right:16px; bottom:16px; z-index:45; width:auto;
     box-shadow:0 10px 26px rgba(0,0,0,.2);
   }
 
@@ -751,18 +800,37 @@ button{font-family:inherit; cursor:pointer}
   .preview-bar-left strong{font-size:12.5px}
   .page-indicator{display:none}
 
-  .build-tabs{padding:8px 14px 0}
-  .trip-name{max-width:120px}
+  .build-tabs{padding:4px 10px 0}
+  .mode-switch{margin:12px 14px 4px}
+  .trip-name{max-width:140px}
+
+  .setup{display:block; overflow-y:auto}
+  .setup-col{overflow:visible; padding:32px 20px 40px}
+  .setup-col--paste{border-left:none; border-top:1px solid var(--hairline); padding-bottom:110px}
+  .setup h2{margin-top:0}
+  .setup #raw{min-height:280px}
+
+  .trip-row{grid-template-columns:1fr auto 32px; gap:12px}
+  .trip-row--head, .trip-cell--dates, .trip-cell--party, .trip-cell--edited{display:none}
 }
 
 @media (max-width:520px){
   .grid-2, .grid-3, .layout-picker{grid-template-columns:1fr}
+  .lib-search{font-size:16px}
   .field input, #raw{font-size:15px}
   .btn-primary, .btn-outline, .btn-sm{min-height:40px}
   .paper-scroll{padding:16px}
   .itin-activity-time{max-width:52px}
   .trip-name{display:none}
-  .topbar{gap:8px; padding:0 14px}
-  .topbar .btn-outline.btn-sm{padding:7px 11px}
-  .btn-ghost{padding:7px 10px; font-size:11.5px}
+  .topbar{gap:6px; padding:0 12px}
+  .topbar-divider{display:none}
+  .topbar .btn-sm{padding:7px 12px}
+  .home-head{padding-top:28px}
+  .home-head h1, .setup h1{font-size:28px}
+  .home-actions{width:100%}
+  .home-actions .btn-quiet{flex:1}
+  .home-actions .btn-primary{order:-1; width:100%; padding:11px 16px}
+  .sheet{padding:0; place-items:end stretch}
+  .sheet-card{max-width:none; border-radius:16px 16px 0 0; max-height:92vh; padding:22px 20px 0}
+  .sheet-foot{margin:18px -20px 0; padding:12px 20px}
 }

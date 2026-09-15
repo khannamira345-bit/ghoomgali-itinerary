@@ -3,76 +3,89 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Ghoomgali Itinerary Maker</title>
-<meta name="theme-color" content="#0C2027">
+<title>Ghoom Gali Itineraries</title>
+<meta name="theme-color" content="#fbfbfd">
 <link rel="icon" href="assets/logos/mark-abyss.svg">
 <link rel="stylesheet" href="assets/fonts/brand-fonts.css">
 <link rel="stylesheet" href="app.css">
 <link rel="stylesheet" href="doc.css">
 </head>
-<body>
+<body data-view="home">
 
 <header class="topbar">
-  <img class="topbar-logo" src="assets/logos/lockup-white.svg" alt="Ghoom Gali">
-  <span class="topbar-divider"></span>
-  <span class="trip-name" id="tripName">Untitled trip</span>
-  <span class="save-state" id="saveState">Saved</span>
-  <div class="history-btns">
+  <img class="topbar-logo" src="assets/logos/lockup-abyss.svg" alt="Ghoom Gali">
+  <span class="topbar-divider tb-trip"></span>
+  <button type="button" class="topbar-back tb-trip" id="btnHome" title="Back to all itineraries">
+    <span aria-hidden="true">&#8249;</span> Itineraries
+  </button>
+  <span class="trip-name tb-trip" id="tripName">New itinerary</span>
+  <span class="save-state tb-work" id="saveState">Saved</span>
+  <span class="topbar-spacer"></span>
+  <div class="history-btns tb-work">
     <button class="btn-icon" id="btnUndo" title="Undo" disabled>&#8630;</button>
     <button class="btn-icon" id="btnRedo" title="Redo" disabled>&#8631;</button>
   </div>
-  <span class="topbar-spacer"></span>
-  <div class="dropdown">
-    <button class="btn-outline btn-sm" id="btnExportTop" aria-haspopup="true" aria-expanded="false">Export&nbsp;▾</button>
+  <div class="dropdown tb-work">
+    <button class="btn-primary btn-sm" id="btnExportTop" aria-haspopup="true" aria-expanded="false">Export&nbsp;▾</button>
     <div class="dropdown-menu" id="exportMenuTop" hidden>
-      <button data-export="pdf"><b>PDF</b><em>Print ready, page for page identical to the preview</em></button>
+      <button data-export="pdf"><b>PDF for the customer</b><em>Print ready, page for page identical to the preview</em></button>
       <button data-export="docx"><b>Word document</b><em>.docx — edit text in Word or Google&nbsp;Docs</em></button>
-      <button data-export="ggi"><b>Save project</b><em>.ggi — reopen here later to duplicate this trip</em></button>
       <hr>
+      <button data-export="ggi"><b>Itinerary file</b><em>.ggi — a backup, or to open on another computer</em></button>
       <button data-export="html"><b>Editable web page</b><em>.html — opens in any browser, edit and re-print</em></button>
-      <button data-export="open"><b>Open a project file…</b><em>Load a saved .ggi back into the maker</em></button>
     </div>
   </div>
-  <button class="btn-ghost" id="btnReset" title="Clear everything and start a new itinerary">New itinerary</button>
 </header>
 
-<!-- First visit only: a full-page wizard for trip details, then the plan.
-     Hitting Generate there ends onboarding and reveals the split view below,
-     moving the very same fields back into the sidebar - one set of inputs,
-     no separate state to keep in sync. -->
-<div class="onboarding" id="onboarding">
-  <div class="onboard-arc a1" aria-hidden="true"></div>
-  <div class="onboard-arc a2" aria-hidden="true"></div>
-
-  <div class="onboard-card">
-    <img class="onboard-logo" src="assets/logos/lockup-white.svg" alt="Ghoom Gali">
-
-    <div class="onboard-progress">
-      <span class="onboard-dot active" data-step="1"></span>
-      <span class="onboard-dot" data-step="2"></span>
+<!-- ─────────────  ITINERARIES (home)  ─────────────
+     Every itinerary the agency has prepared, newest first. Saved on this
+     computer; open one to keep working, duplicate it for a similar
+     customer, or download it as a file. -->
+<div class="home" id="home">
+  <header class="home-head">
+    <div>
+      <h1>Itineraries</h1>
+      <p>Every trip prepared for your customers, saved on this computer.</p>
     </div>
-
-    <div class="onboard-step active" id="onboardStep1">
-      <div class="onboard-head">
-        <h1>Let's plan your <em>next escape.</em></h1>
-        <p>A few details for the cover and overview pages. Leave anything blank to hide it later.</p>
-      </div>
-      <div class="onboard-slot" id="onboardSlot1"><!-- Trip details field-group moves here --></div>
-      <div class="onboard-actions">
-        <span></span>
-        <button type="button" class="btn-primary btn-onboard" id="btnOnboardNext">Continue</button>
-      </div>
+    <div class="home-actions">
+      <button type="button" class="btn-quiet" id="btnAgency">Agency settings</button>
+      <button type="button" class="btn-quiet" id="btnOpenFile">Open a file…</button>
+      <button type="button" class="btn-primary btn-sm" id="btnNewTrip">New itinerary</button>
     </div>
+  </header>
 
-    <div class="onboard-step" id="onboardStep2">
-      <button type="button" class="onboard-back" id="btnOnboardBack">&larr; Back</button>
-      <div class="onboard-head">
-        <h1>Now, <em>paste the plan.</em></h1>
-        <p>WhatsApp messages, an email, rough bullets - whatever you have. Start each day with <b>Day 1</b>, <b>Day 2</b> and so on.</p>
-      </div>
-      <div class="onboard-slot" id="onboardSlot2"><!-- Paste the plan field-group moves here --></div>
-    </div>
+  <div class="home-toolbar" id="homeToolbar" hidden>
+    <input type="search" class="lib-search home-search" id="homeSearch" placeholder="Search by customer, destination or dates" autocomplete="off">
   </div>
+
+  <div class="trip-table" id="tripList"></div>
+
+  <div class="home-empty" id="homeEmpty" hidden>
+    <img src="assets/logos/mark-abyss.svg" alt="">
+    <h2>No itineraries yet</h2>
+    <p>Start one for your first customer. Paste their WhatsApp chat and the itinerary is laid out for you.</p>
+    <button type="button" class="btn-primary btn-sm" id="btnNewTripEmpty">New itinerary</button>
+  </div>
+</div>
+
+<!-- ─────────────  NEW ITINERARY (setup)  ─────────────
+     One full-window step: customer and trip basics on the left, the pasted
+     chat on the right. The fields are the workspace's own inputs, moved in
+     here and moved back once the itinerary is created - one set of inputs,
+     no separate state to keep in sync. -->
+<div class="setup" id="onboarding" hidden>
+  <section class="setup-col setup-col--details">
+    <p class="setup-eyebrow">New itinerary</p>
+    <h1>Who is this trip for?</h1>
+    <p class="setup-lede">The customer and the basics of their trip. Your advisor details come from Agency settings, and everything can be changed later.</p>
+    <div class="setup-slot" id="onboardSlot1"><!-- Trip details field-group moves here --></div>
+  </section>
+  <section class="setup-col setup-col--paste">
+    <h2>Paste the chat</h2>
+    <p class="setup-lede">Copy the plan agreed with the customer out of WhatsApp or email and paste it here as it is. Start each day with <b>Day&nbsp;1</b>, <b>Day&nbsp;2</b> and so on.</p>
+    <div class="setup-slot" id="onboardSlot2"><!-- Paste the chat field-group moves here --></div>
+    <button type="button" class="btn-link setup-blank" id="btnSetupBlank">No chat yet? Start with a blank itinerary</button>
+  </section>
 </div>
 
 <!-- Phone-width only: the two panels become two screens, like a native app. -->
@@ -86,55 +99,100 @@
   <!-- ─────────────  LEFT: BUILD  ───────────── -->
   <section class="panel panel-input">
 
+    <!-- Two jobs, two tabs: build the itinerary from the pasted chat, then
+         price it as a quotation from the built-in cost sheets. -->
+    <div class="mode-switch" id="modeSwitch" role="tablist">
+      <button type="button" class="mode-btn active" data-mode="itinerary" role="tab"><span class="mode-n">1</span>Itinerary</button>
+      <button type="button" class="mode-btn" data-mode="quotation" role="tab"><span class="mode-n">2</span>Quotation</button>
+    </div>
+
     <nav class="build-tabs" id="buildTabs">
-      <button type="button" class="build-tab active" data-section="overview">Overview</button>
-      <button type="button" class="build-tab" data-section="itinerary">Itinerary</button>
-      <button type="button" class="build-tab" data-section="activities">Activities</button>
-      <button type="button" class="build-tab" data-section="quotation">Quotation</button>
-      <button type="button" class="build-tab" data-section="document">Document</button>
+      <button type="button" class="build-tab active" data-mode="itinerary" data-section="paste">Paste chat</button>
+      <button type="button" class="build-tab" data-mode="itinerary" data-section="itinerary">Days</button>
+      <button type="button" class="build-tab" data-mode="itinerary" data-section="overview">Trip details</button>
+      <button type="button" class="build-tab" data-mode="itinerary" data-section="document">Document</button>
+      <button type="button" class="build-tab" data-mode="quotation" data-section="costsheet" hidden>Cost sheet</button>
+      <button type="button" class="build-tab" data-mode="quotation" data-section="quotation" hidden>Pricing</button>
     </nav>
 
     <div class="panel-scroll">
 
-      <!-- ── Overview ── -->
-      <div class="build-section active" data-section="overview">
+      <!-- ── Paste chat ── -->
+      <div class="build-section active" data-section="paste">
+        <div id="fgPastePlanSlot"></div>
+      <div class="field-group" id="fgPastePlan">
+        <h2 class="group-title">Paste the chat</h2>
+        <p class="group-hint">
+          Paste the customer's plan from WhatsApp or email, exactly as it is.
+          Start each day with <b>Day 1</b>, <b>Day 2</b> and so on; everything under it becomes that day.
+          Rebuilding replaces the days — photos are kept where the title matches.
+        </p>
+        <textarea id="raw" spellcheck="false" placeholder="Day 1 — Arrive Delhi
+09:40 Flight 6E-2043 Mumbai to Delhi
+Pickup from T3 and transfer to hotel
+Check in at The Claridges, Lutyens Delhi
+Evening walk through Khan Market
 
-        <div class="field-group">
-          <h2 class="group-title">Layout</h2>
-          <p class="group-hint">Two ways to present the same trip. Switch any time — nothing is lost.</p>
-          <div class="layout-picker" id="layoutPicker">
-            <button type="button" class="layout-opt active" data-layout="editorial">
-              <b>Editorial</b><em>Magazine feel. Cover, overview, day cards.</em>
-            </button>
-            <button type="button" class="layout-opt" data-layout="quotation">
-              <b>Quotation</b><em>Quote ID, details table, advisor, terms.</em>
-            </button>
-          </div>
-          <input type="hidden" id="f-layout" value="editorial">
+Day 2 — Delhi to Shimla
+Breakfast at hotel
+Drive to Shimla, about 8 hours by road
+Check in at Wildflower Hall
+..."></textarea>
+        <div class="raw-actions">
+          <button class="btn-link" id="btnSample">Try a sample chat</button>
+          <span class="counter" id="rawCount">0 lines</span>
         </div>
+
+        <button class="btn-primary" id="btnGenerate">Create itinerary</button>
+
+        <details class="tips">
+          <summary>How the chat is read</summary>
+          <ul>
+            <li><code>Day 1 | Nov 22 · Hanoi | Hanoi</code> — day number, then the date line, then the title</li>
+            <li><code>[On arrival · coordinated with flight]</code> — square brackets become the small label above a card</li>
+            <li><code>HAN Airport Pick-Up | 2100</code> — a title, then its cost after a pipe</li>
+            <li>The next plain line becomes the description</li>
+            <li><code>- Private transfer vehicle</code> — dashes become the bullet list</li>
+            <li><code>= INR 2,318 × 5 adults</code> — an equals sign makes the small grey cost note</li>
+          </ul>
+          <p><b>Sections:</b> start a line with <code>Hotels</code>, <code>Pricing</code>, <code>Inclusions</code>,
+             <code>Exclusions</code> or <code>Notes</code> and list beneath it.</p>
+          <p><b>Hotels:</b> <code>Hanoi | Sky Lark Hotel | Nov 22 – 24 | 2 nights | 21533</code>, then dashes for room types.</p>
+          <p><b>Pricing:</b> <code>Margin | 45000</code>, <code>GST | 5%</code>, <code>TCS | 2%</code>.
+             Day totals, base cost, subtotal, GST/TCS and the grand total are all worked out for you,
+             with tax shown as its own section.</p>
+          <p><b>Children:</b> mention <code>2 children</code> or <code>2 kids</code> anywhere in the
+             opening lines and it appears as its own stat, and counts toward cost per person.</p>
+          <p><b>Terms:</b> start a line with <code>Terms</code> or <code>Cancellation Policy</code> and list beneath it.</p>
+          <p><b>Trip summary:</b> every entry is sorted into Morning, Afternoon or Evening automatically —
+             from words like "evening" or a time like <code>15:30</code>. On the Trip summary page,
+             click any entry to move it to a different column.</p>
+          <p>Every card gets a photo slot. Click it, or drag an image straight onto it.</p>
+        </details>
+      </div>
+      </div>
+
+      <!-- ── Trip details ── -->
+      <div class="build-section" data-section="overview">
 
         <div id="fgTripDetailsSlot"></div>
         <div class="field-group" id="fgTripDetails">
           <h2 class="group-title">Trip details</h2>
-          <p class="group-hint">These appear on the cover and overview pages. Leave any blank to hide it.</p>
+          <p class="group-hint">Shown on the customer's cover and overview pages. Leave any blank to hide it.</p>
           <div class="grid-2">
-            <label class="field">
-              <span>Guest name</span>
-              <input type="text" id="f-guest" placeholder="Shivani Sharma">
+            <label class="field field-wide">
+              <span>Customer name</span>
+              <input type="text" id="f-guest" placeholder="Shivani Sharma" autocomplete="off">
             </label>
             <label class="field">
-              <span>Advisor contact</span>
-              <input type="text" id="f-advisorPhone" placeholder="+91 88000 25030">
-            </label>
-            <label class="field">
-              <span>Trip title</span>
+              <span>Destination <em>trip title</em></span>
               <input type="text" id="f-title" placeholder="Vietnam">
             </label>
             <label class="field">
               <span>Accent word <em>shown in gold</em></span>
               <input type="text" id="f-titleAccent" placeholder="Escape.">
             </label>
-            <label class="field field-wide">
+            <label class="field field-wide setup-hide">
               <span>Subtitle</span>
               <input type="text" id="f-subtitle" placeholder="Hanoi · Danang · Phu Quoc — an 8-day journey for 5">
             </label>
@@ -154,21 +212,25 @@
               <span>Children <em>optional</em></span>
               <input type="text" id="f-children" placeholder="2 Children">
             </label>
-            <label class="field">
+            <label class="field setup-hide">
               <span>Destinations</span>
               <input type="text" id="f-destinations" placeholder="3 Cities">
             </label>
-            <label class="field">
+            <label class="field setup-hide">
               <span>Prepared on</span>
               <input type="text" id="f-preparedOn" placeholder="Nov 2026">
             </label>
-            <label class="field">
-              <span>Prepared by</span>
-              <input type="text" id="f-preparedBy" placeholder="Ghoom Gali Travel">
+            <label class="field setup-hide">
+              <span>Advisor name</span>
+              <input type="text" id="f-preparedBy" placeholder="Aman, Ghoom Gali">
+            </label>
+            <label class="field setup-hide">
+              <span>Advisor phone</span>
+              <input type="text" id="f-advisorPhone" placeholder="+91 88000 25030">
             </label>
           </div>
 
-          <div class="theme-picker">
+          <div class="theme-picker setup-hide">
             <span class="theme-label">Colour accent</span>
             <div class="swatches" id="themeSwatches">
               <button type="button" class="swatch swatch--auto active" data-theme="">Auto</button>
@@ -177,7 +239,7 @@
               <button type="button" class="swatch swatch--lantern" data-theme="lantern" title="Lantern"></button>
             </div>
           </div>
-          <p class="group-hint theme-hint">Auto gives each trip its own accent from the brand palette. Pick one to lock it.</p>
+          <p class="group-hint theme-hint setup-hide">Auto gives each trip its own accent from the brand palette. Pick one to lock it.</p>
           <input type="hidden" id="f-theme" value="">
         </div>
       </div>
@@ -186,123 +248,97 @@
       <div class="build-section" data-section="itinerary">
         <div class="itin-intro">
           <h2 class="group-title">Itinerary</h2>
-          <p class="group-hint">Here's your trip — click a day to jump to it in the preview, or an activity to edit it.</p>
+          <p class="group-hint">Click a day to jump to it in the preview, or an activity to edit it.</p>
         </div>
 
         <div class="itin-days" id="itinDays"></div>
         <button type="button" class="itin-add-day" id="btnAddDay">+ Add day</button>
-
-        <details class="tips itin-raw-advanced">
-          <summary>Advanced — edit the raw plan</summary>
-          <p class="group-hint" style="margin-top:12px">
-            Re-paste the whole plan to regenerate the trip from scratch. Existing photos are kept where the title matches.
-          </p>
-          <div id="fgPastePlanSlot"></div>
-          <div class="field-group" id="fgPastePlan">
-            <h2 class="group-title">Paste the plan</h2>
-            <p class="group-hint">
-              Paste raw notes exactly as you have them — WhatsApp messages, an email, rough bullets.
-              Start each day with <b>Day 1</b>, <b>Day 2</b> and so on; everything under it becomes that day.
-            </p>
-            <textarea id="raw" spellcheck="false" placeholder="Day 1 — Arrive Delhi
-09:40 Flight 6E-2043 Mumbai to Delhi
-Pickup from T3 and transfer to hotel
-Check in at The Claridges, Lutyens Delhi
-Evening walk through Khan Market
-
-Day 2 — Delhi to Shimla
-Breakfast at hotel
-Drive to Shimla, about 8 hours by road
-Check in at Wildflower Hall
-..."></textarea>
-            <div class="raw-actions">
-              <button class="btn-link" id="btnSample">Load sample text</button>
-              <span class="counter" id="rawCount">0 lines</span>
-            </div>
-
-            <button class="btn-primary" id="btnGenerate">Generate Beautiful Branded Itinerary</button>
-
-            <details class="tips">
-              <summary>How to write the plan</summary>
-              <ul>
-                <li><code>Day 1 | Nov 22 · Hanoi | Hanoi</code> — day number, then the date line, then the title</li>
-                <li><code>[On arrival · coordinated with flight]</code> — square brackets become the small label above a card</li>
-                <li><code>HAN Airport Pick-Up | 2100</code> — a title, then its cost after a pipe</li>
-                <li>The next plain line becomes the description</li>
-                <li><code>- Private transfer vehicle</code> — dashes become the bullet list</li>
-                <li><code>= INR 2,318 × 5 adults</code> — an equals sign makes the small grey cost note</li>
-              </ul>
-              <p><b>Sections:</b> start a line with <code>Hotels</code>, <code>Pricing</code>, <code>Inclusions</code>,
-                 <code>Exclusions</code> or <code>Notes</code> and list beneath it.</p>
-              <p><b>Hotels:</b> <code>Hanoi | Sky Lark Hotel | Nov 22 – 24 | 2 nights | 21533</code>, then dashes for room types.</p>
-              <p><b>Pricing:</b> <code>Margin | 45000</code>, <code>GST | 5%</code>, <code>TCS | 2%</code>.
-                 Day totals, base cost, subtotal, GST/TCS and the grand total are all worked out for you,
-                 with tax shown as its own section.</p>
-              <p><b>Children:</b> mention <code>2 children</code> or <code>2 kids</code> anywhere in the
-                 opening lines and it appears as its own stat, and counts toward cost per person.</p>
-              <p><b>Terms:</b> start a line with <code>Terms</code> or <code>Cancellation Policy</code> and list beneath it.</p>
-              <p><b>Trip summary:</b> every entry is sorted into Morning, Afternoon or Evening automatically —
-                 from words like "evening" or a time like <code>15:30</code>. On the Trip summary page,
-                 click any entry to move it to a different column.</p>
-              <p>Every card gets a photo slot. Click it, or drag an image straight onto it.</p>
-            </details>
-          </div>
-        </details>
       </div>
 
-      <!-- ── Activities ── -->
-      <div class="build-section" data-section="activities">
+
+      <!-- ── Cost sheet ── -->
+      <div class="build-section" data-section="costsheet">
         <div class="field-group">
-          <h2 class="group-title">Activity library</h2>
-          <p class="group-hint">
-            An alternative to pasting text — import an Excel cost sheet, one worksheet per
-            destination, then click items into each day. Use it alone, or alongside pasted notes.
+          <h2 class="group-title">Cost sheet</h2>
+          <p class="group-hint" id="libHint">
+            Search the agency's rates — type <b>pickup</b> and every pickup shows with its prices.
+            Click a price to add it to the selected day.
           </p>
 
-          <div class="lib-toolbar">
-            <button type="button" class="btn-outline btn-sm" id="btnImportExcel">Import Excel</button>
-            <button type="button" class="btn-link" id="btnLibTemplate">Download template</button>
-            <span class="lib-status" id="libStatus"></span>
-          </div>
-          <input type="file" id="fileExcel" accept=".xlsx,.xls,.csv" hidden>
-
           <div class="lib-dest-row" id="libDestRow" hidden></div>
+          <div class="lib-city-row" id="libCityRow" hidden></div>
 
           <div class="lib-body" id="libBody" hidden>
+            <input type="search" class="lib-search" id="libSearch" placeholder="Search — pickup, airport, Ba Na Hills, SIC…" autocomplete="off">
+
             <div class="lib-cat-tabs" id="libCatTabs">
-              <button type="button" class="lib-tab active" data-cat="hotel">Hotels</button>
+              <button type="button" class="lib-tab active" data-cat="all">All</button>
               <button type="button" class="lib-tab" data-cat="transfer">Transfers</button>
-              <button type="button" class="lib-tab" data-cat="activity">Activities</button>
+              <button type="button" class="lib-tab" data-cat="activity">Tours &amp; tickets</button>
+              <button type="button" class="lib-tab" data-cat="hotel">Hotels</button>
               <button type="button" class="lib-tab" data-cat="visa">Visa</button>
             </div>
-
-            <input type="text" class="lib-search" id="libSearch" placeholder="Search this destination…">
 
             <div class="lib-day-target">
               <span class="lib-day-label">Adding to</span>
               <div class="lib-days" id="libDays"></div>
             </div>
-
-            <div class="lib-day-plan" id="libDayPlan"></div>
+            <p class="lib-pax" id="libPax"></p>
 
             <div class="lib-items" id="libItems"></div>
+
+            <div class="lib-day-plan" id="libDayPlan"></div>
           </div>
 
-          <div class="lib-empty" id="libEmpty">Import an Excel cost sheet to build your library — or click "Download template" to see the exact format.</div>
+          <div class="lib-empty" id="libEmpty">
+            <b>Import the agency's cost sheet</b>
+            <span>Choose the Excel file with the Thailand and Vietnam rates. It's read on this computer and
+              saved in this browser only — the rates are never uploaded or published.</span>
+            <button type="button" class="btn-primary btn-sm" id="btnImportExcelEmpty">Import Excel file</button>
+          </div>
+
+          <details class="tips lib-manage" id="libManage" hidden>
+            <summary>Update cost sheets</summary>
+            <p class="group-hint" style="margin-top:12px">
+              Import a newer copy of the Excel file to replace the rates for the countries in it.
+              Each staff computer imports its own copy; the rates stay in that browser.
+            </p>
+            <div class="lib-toolbar">
+              <button type="button" class="btn-outline btn-sm" id="btnImportExcel">Import newer file</button>
+              <button type="button" class="btn-link" id="btnLibTemplate">Download a blank template</button>
+              <button type="button" class="btn-link lib-remove" id="btnLibResetLocal">Remove cost sheets from this computer</button>
+            </div>
+            <p class="lib-status" id="libStatus"></p>
+          </details>
+          <input type="file" id="fileExcel" accept=".xlsx,.xls,.csv" hidden>
         </div>
       </div>
 
-      <!-- ── Quotation ── -->
+      <!-- ── Pricing ── -->
       <div class="build-section" data-section="quotation">
+        <div class="field-group">
+          <h2 class="group-title">Document layout</h2>
+          <p class="group-hint">Two ways to present the same trip. Switch any time — nothing is lost.</p>
+          <div class="layout-picker" id="layoutPicker">
+            <button type="button" class="layout-opt active" data-layout="editorial">
+              <b>Editorial</b><em>Magazine feel. Cover, overview, day cards.</em>
+            </button>
+            <button type="button" class="layout-opt" data-layout="quotation">
+              <b>Quotation</b><em>Quote ID, details table, advisor, terms.</em>
+            </button>
+          </div>
+          <input type="hidden" id="f-layout" value="editorial">
+        </div>
+
         <div class="field-group">
           <h2 class="group-title">Quotation</h2>
           <p class="group-hint">
-            The client sees the total below on their PDF. Margin stays on this screen —
-            it only prints if you tick the box inside Advanced.
+            The customer sees this total on their PDF. Your margin stays on this screen
+            and only prints if you tick the box inside Advanced.
           </p>
 
           <dl class="quo-summary" id="quoSummary">
-            <div class="quo-empty">Generate an itinerary to see the costing.</div>
+            <div class="quo-empty">Add prices to the itinerary to see the quotation.</div>
           </dl>
 
           <div class="grid-3 quo-inputs">
@@ -334,7 +370,7 @@ Check in at Wildflower Hall
 
             <label class="check">
               <input type="checkbox" id="c-showMargin">
-              <span>Show margin and base cost on the PDF <em>internal copy</em></span>
+              <span>Print margin and base cost on the PDF <em>internal copy only</em></span>
             </label>
           </details>
         </div>
@@ -344,7 +380,7 @@ Check in at Wildflower Hall
       <div class="build-section" data-section="document">
         <div class="field-group">
           <h2 class="group-title">Inclusions</h2>
-          <p class="group-hint">What this package covers. Printed on its own page in the PDF.</p>
+          <p class="group-hint">What this customer's package covers. Printed on its own page in the PDF.</p>
           <div class="doc-list" id="docInclusions"></div>
           <button type="button" class="btn-outline btn-sm doc-list-add" data-list="inclusions">+ Add inclusion</button>
         </div>
@@ -361,6 +397,10 @@ Check in at Wildflower Hall
           <p class="group-hint">Cancellation policy and anything else — numbered automatically on the PDF.</p>
           <div class="doc-list" id="docTerms"></div>
           <button type="button" class="btn-outline btn-sm doc-list-add" data-list="terms">+ Add term</button>
+          <p class="group-hint doc-defaults-hint">
+            New itineraries start with the lists saved in Agency settings.
+            <button type="button" class="btn-link" id="btnSaveListsDefault">Save these three lists as the agency default</button>
+          </p>
         </div>
 
         <div class="field-group">
@@ -398,8 +438,8 @@ Check in at Wildflower Hall
     <div class="paper-scroll" id="paperScroll">
       <div class="empty-state" id="emptyState">
         <img src="assets/logos/mark-plane-mint.svg" alt="">
-        <h3>Your itinerary will appear here</h3>
-        <p>Fill in the trip details, paste your day-wise plan on the left, then hit <b>Generate</b>. Every page is styled to the Ghoom Gali guidelines automatically.</p>
+        <h3>The customer's itinerary appears here</h3>
+        <p>Paste the chat on the left and choose <b>Create itinerary</b>, or add days from the cost sheet. Every page follows the Ghoom Gali brand automatically.</p>
       </div>
       <div id="doc" class="doc"></div>
     </div>
@@ -414,6 +454,40 @@ Check in at Wildflower Hall
   <button data-act="down" title="Move down">↓</button>
   <button data-act="bullet" title="Add a bullet line">+ Bullet</button>
   <button data-act="delete" class="danger" title="Remove this card">Remove</button>
+</div>
+
+<!-- Agency settings: saved once, filled into every new itinerary. -->
+<div class="sheet" id="agencySheet" hidden>
+  <div class="sheet-card" role="dialog" aria-modal="true" aria-labelledby="agencyTitle">
+    <h2 id="agencyTitle">Agency settings</h2>
+    <p class="group-hint">Filled in automatically on every new itinerary. Each itinerary can still be changed on its own.</p>
+    <div class="grid-2">
+      <label class="field">
+        <span>Advisor name</span>
+        <input type="text" id="ag-preparedBy" placeholder="Aman, Ghoom Gali">
+      </label>
+      <label class="field">
+        <span>Advisor phone</span>
+        <input type="text" id="ag-advisorPhone" placeholder="+91 88000 25030">
+      </label>
+      <label class="field field-wide">
+        <span>Inclusions <em>one per line</em></span>
+        <textarea id="ag-inclusions" rows="4" placeholder="Daily breakfast&#10;All transfers in a private vehicle"></textarea>
+      </label>
+      <label class="field field-wide">
+        <span>Exclusions <em>one per line</em></span>
+        <textarea id="ag-exclusions" rows="4" placeholder="International flights&#10;Personal expenses"></textarea>
+      </label>
+      <label class="field field-wide">
+        <span>Terms &amp; conditions <em>one per line</em></span>
+        <textarea id="ag-terms" rows="5" placeholder="50% advance to confirm the booking&#10;No refund for cancellations within 15 days of travel"></textarea>
+      </label>
+    </div>
+    <div class="sheet-foot">
+      <button type="button" class="btn-quiet" id="btnAgencyCancel">Cancel</button>
+      <button type="button" class="btn-primary btn-sm" id="btnAgencySave">Save</button>
+    </div>
+  </div>
 </div>
 
 <div class="toast" id="toast" hidden></div>

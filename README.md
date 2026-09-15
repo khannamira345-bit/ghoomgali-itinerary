@@ -52,15 +52,38 @@ the folder onto the page and it returns a URL immediately.
 
 ---
 
-## What the client does
+## How the agency uses it
 
-The interface is two panels.
+The maker is for the Ghoom Gali team, who prepare itineraries for many
+customers. The customer only ever sees the exported PDF or Word file.
 
-**Left — input.** Trip details at the top (title, guest, dates, destination,
-contact). Below it, a textarea for raw notes. Any typed field overrides what
-the parser guessed; blank fields are simply hidden in the output.
+**Itineraries.** The app opens on a list of every itinerary saved on this
+computer: customer, travel dates, travelers, quotation total and when it was
+last edited. Search it, open one to keep working, or use the ••• menu to
+duplicate it for another customer (everything is copied except the name),
+download it as a `.ggi` file, or delete it. Itineraries are stored in the
+browser's IndexedDB, so they survive closing the tab but stay on this one
+computer. Download a `.ggi` to move one to another machine, then use
+**Open a file…**.
 
-**Right — live preview.** Real A4 pages: cover, trip overview with the
+**Agency settings.** Advisor name and phone, and the standard inclusions,
+exclusions and terms. Saved once and filled into every new itinerary. The
+Document tab can also save the current lists as the new default.
+
+**New itinerary.** One full-window page: the customer and trip basics on the
+left, the pasted WhatsApp or email chat on the right. **Create itinerary**
+lays it out; **Start with a blank itinerary** skips the chat and builds from
+the cost sheet instead.
+
+**The workspace** is two tabs beside a live preview:
+
+- **1 · Itinerary.** Paste chat (rebuild from a new paste), Days (edit, reorder,
+  add activities), Trip details, and Document (inclusions, exclusions, terms).
+- **2 · Quotation.** Cost sheet (pick a country, search: type `pickup` to see
+  every pickup with its prices, click a price to add it to a day) and Pricing
+  (layout, GST, TCS, discount, and margin kept internal unless printed).
+
+**Live preview.** Real A4 pages: cover, trip overview with the
 accommodation list, day-by-day cards two days to a page, optional notes, and a
 cost summary. Click any text to edit it in place. Hover a card for its
 toolbar: add a photo, reorder, add a bullet, or remove it.
@@ -73,8 +96,34 @@ Images are downscaled to 1600px before storage so drafts and PDFs stay small.
 Empty slots cost the layout nothing and disappear on export, so the page
 breaks you see in the preview are the ones the PDF gets.
 
-Work autosaves to the browser's local storage, so a closed tab is not a lost
-itinerary.
+Work autosaves as you type.
+
+### Cost sheets
+
+The rates are **not** part of the app. It is a public page, and anything
+bundled into it could be read by anyone with the link, so each staff computer
+imports the agency's Excel workbook once (Quotation → Cost sheet → Import
+Excel file). It is read in the browser and saved in that browser only. To
+update rates, import the newer file; countries in it replace the old ones.
+
+The reader understands the agency's existing layout:
+
+- **Rate tables.** Any row with two or more price headings side by side
+  starts a table: vehicle sizes (`4 SEATER`, `Small Car (2-4)`, `Innova (4-7)`),
+  traveler types (`Adult`, `Child (3-5)`) or `SIC Price` / `Private Price`.
+  Each heading becomes one clickable rate on the item. A `0` means not
+  offered; text like `400 NP` is shown as a note, never added up.
+- **Country and city** come from the sheet name (`vietnam hanoi pvt`,
+  `DAD SIC`, `SGN PVT`, `PQC PVT`, `SAPA SIC`, `Thailand`), or a `City` column.
+  A sheet named only `PVT SIC` takes the city of the sheet before it.
+- **Season.** A line like `1 Jan 2025 - 31 Mar 2026` is kept with each rate;
+  once that date passes, results show a "rate season ended" warning.
+- Sheets with no rate table, such as a leads list or a hotel roster, are
+  skipped and listed after the import.
+
+When a rate is added to a day, vehicle rates count once, adult and child rates
+multiply by the travelers in Trip details, and the itinerary shows the working,
+for example `INR 2,205 × 2 adults`.
 
 ### Input format
 
@@ -178,14 +227,15 @@ else needs changing.
 ## Files
 
 ```
-index.html    interface shell
+index.html    interface shell: itineraries list, setup, workspace
 app.css       application chrome
 doc.css       the itinerary document; also inlined into the HTML export
 brand.js      palette, type and logo constants
 parser.js     raw text to model
 render.js     model to paginated A4 pages
 export.js     PDF, DOCX, HTML, GGI
-app.js        state, editing, photos, autosave
+library.js    reads the agency's Excel cost sheets, stores them in the browser
+app.js        itineraries list, state, editing, photos, autosave
 vendor/       jsPDF, html2canvas, JSZip (pinned, offline)
 assets/       logos and fonts
 ```
