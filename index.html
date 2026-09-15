@@ -21,13 +21,47 @@
   <button class="btn-ghost" id="btnReset" title="Clear everything and start a new itinerary">New itinerary</button>
 </header>
 
+<!-- First visit only: a full-page wizard for trip details, then the plan.
+     Hitting Generate there ends onboarding and reveals the split view below,
+     moving the very same fields back into the sidebar - one set of inputs,
+     no separate state to keep in sync. -->
+<div class="onboarding" id="onboarding">
+  <div class="onboard-card">
+    <div class="onboard-progress">
+      <span class="onboard-dot active" data-step="1"></span>
+      <span class="onboard-dot" data-step="2"></span>
+    </div>
+
+    <div class="onboard-step active" id="onboardStep1">
+      <div class="onboard-head">
+        <h1>Let's set up your trip</h1>
+        <p>A few details for the cover and overview pages. Leave anything blank to hide it later.</p>
+      </div>
+      <div class="onboard-slot" id="onboardSlot1"><!-- Trip details field-group moves here --></div>
+      <div class="onboard-actions">
+        <span></span>
+        <button type="button" class="btn-primary btn-onboard" id="btnOnboardNext">Continue</button>
+      </div>
+    </div>
+
+    <div class="onboard-step" id="onboardStep2">
+      <button type="button" class="onboard-back" id="btnOnboardBack">&larr; Back</button>
+      <div class="onboard-head">
+        <h1>Now paste the plan</h1>
+        <p>WhatsApp messages, an email, rough bullets - whatever you have. Start each day with <b>Day 1</b>, <b>Day 2</b> and so on.</p>
+      </div>
+      <div class="onboard-slot" id="onboardSlot2"><!-- Paste the plan field-group moves here --></div>
+    </div>
+  </div>
+</div>
+
 <!-- Phone-width only: the two panels become two screens, like a native app. -->
-<nav class="mobile-tabs" id="mobileTabs">
+<nav class="mobile-tabs" id="mobileTabs" hidden>
   <button type="button" class="mobile-tab active" data-tab="build">Build</button>
   <button type="button" class="mobile-tab" data-tab="preview">Preview</button>
 </nav>
 
-<main class="split tab-build">
+<main class="split tab-build" id="mainSplit" hidden>
 
   <!-- ─────────────  LEFT: INPUT  ───────────── -->
   <section class="panel panel-input">
@@ -90,7 +124,8 @@
         <div class="lib-empty" id="libEmpty">Import an Excel cost sheet to build your library — or click "Download template" to see the exact format.</div>
       </div>
 
-      <div class="field-group">
+      <div id="fgTripDetailsSlot"></div>
+      <div class="field-group" id="fgTripDetails">
         <h2 class="group-title">Trip details</h2>
         <p class="group-hint">These appear on the cover and overview pages. Leave any blank to hide it.</p>
         <div class="grid-2">
@@ -196,7 +231,8 @@
         </label>
       </div>
 
-      <div class="field-group">
+      <div id="fgPastePlanSlot"></div>
+      <div class="field-group" id="fgPastePlan">
         <h2 class="group-title">Paste the plan</h2>
         <p class="group-hint">
           Paste raw notes exactly as you have them — WhatsApp messages, an email, rough bullets.

@@ -159,6 +159,11 @@
     if (state.model) carryPhotos(state.model, model);
 
     state.model = model;
+    // Must run before rerender(): pagination measures real scrollHeight, and
+    // the wizard leaves the split view hidden until this point - rendering
+    // into a still-hidden ancestor is the same mis-measurement bug a hidden
+    // mobile tab caused earlier, just from a different hiding mechanism.
+    endOnboarding();
     rerender();
     writeFields(model.meta);
     writeCostInputs();
@@ -465,6 +470,7 @@
       var model = await window.GGExport.readProject(f);
       state.model = model;
       writeFields(model.meta || {});
+      endOnboarding();
       rerender();
       writeCostInputs();
       refreshCostReview();
@@ -636,6 +642,59 @@
   function showPreviewOnMobile() {
     if (isMobile()) setMobileTab('preview');
   }
+
+  /* ---- onboarding wizard ---------------------------------------------------
+     First visit: a full-page "trip details, then paste the plan" wizard.
+     Hitting Generate there ends it and reveals the split view. The wizard
+     doesn't hold its own copies of the fields - it borrows the sidebar's own
+     Trip details and Paste-the-plan sections by moving those exact DOM
+     nodes in, then moving them straight back once Generate is clicked. One
+     set of inputs, so there's nothing to keep in sync. */
+
+  var onboardEl = $('onboarding');
+  var fgTripDetails = $('fgTripDetails');
+  var fgPastePlan = $('fgPastePlan');
+  var fgTripDetailsSlot = $('fgTripDetailsSlot');
+  var fgPastePlanSlot = $('fgPastePlanSlot');
+  var onboardStep1 = $('onboardStep1');
+  var onboardStep2 = $('onboardStep2');
+  var onboardSlot1 = $('onboardSlot1');
+  var onboardSlot2 = $('onboardSlot2');
+
+  function setOnboardStep(step) {
+    if (onboardStep1) onboardStep1.classList.toggle('active', step === 1);
+    if (onboardStep2) onboardStep2.classList.toggle('active', step === 2);
+    Array.prototype.slice.call(document.querySelectorAll('.onboard-dot')).forEach(function (d) {
+      d.classList.toggle('active', +d.dataset.step === step);
+    });
+  }
+
+  function startOnboarding() {
+    if (!onboardEl) return;
+    if (onboardSlot1 && fgTripDetails) onboardSlot1.appendChild(fgTripDetails);
+    if (onboardSlot2 && fgPastePlan) onboardSlot2.appendChild(fgPastePlan);
+    setOnboardStep(1);
+    onboardEl.hidden = false;
+    if (splitEl) splitEl.hidden = true;
+    if (mobileTabs) mobileTabs.hidden = true;
+  }
+
+  /* Safe to call even when onboarding was never shown (a returning visitor)
+     or has already ended - re-appending an already-placed node is a no-op. */
+  function endOnboarding() {
+    if (!onboardEl) return;
+    if (fgTripDetailsSlot && fgTripDetails) fgTripDetailsSlot.appendChild(fgTripDetails);
+    if (fgPastePlanSlot && fgPastePlan) fgPastePlanSlot.appendChild(fgPastePlan);
+    onboardEl.hidden = true;
+    if (splitEl) splitEl.hidden = false;
+    if (mobileTabs) mobileTabs.hidden = false;
+  }
+
+  var btnOnboardNext = $('btnOnboardNext');
+  if (btnOnboardNext) btnOnboardNext.addEventListener('click', function () { setOnboardStep(2); });
+
+  var btnOnboardBack = $('btnOnboardBack');
+  if (btnOnboardBack) btnOnboardBack.addEventListener('click', function () { setOnboardStep(1); });
 
   /* ---- theme picker ------------------------------------------------------ */
 
@@ -1002,6 +1061,7 @@
     emptyState.hidden = false;
     $('rawCount').textContent = '0 lines';
     toast('Cleared. Ready for the next trip.');
+    startOnboarding();
   });
 
   $('zoomIn').addEventListener('click', function () {
@@ -1167,9 +1227,30 @@
 
   setMobileTab('build');
 
+  /* Both the wizard and the split view start hidden in the HTML, so there is
+     no flash of the wrong one. The split view is revealed first because
+     restore() renders into it directly - pagination measures real
+     scrollHeight, and a hidden ancestor at that moment would corrupt it the
+     same way an inactive mobile tab did before. All of this runs
+     synchronously before the browser's first paint, so a fresh visitor
+     never actually sees the split view before the wizard replaces it. */
+  if (splitEl) splitEl.hidden = false;
+  if (mobileTabs) mobileTabs.hidden = false;
+  if (restore()) {
+    if (onboardEl) onboardEl.hidden = true;
+  } else {
+    emptyState.hidden = false;
+    syncThemeSwatchUI();
+    syncLayoutPickerUI();
+    startOnboarding();
+  }
+  renderLibraryUI();
+  $('raw').dispatchEvent(new Event('input'));
+
   preloadLogos().then(function () {
-    if (!restore()) { emptyState.hidden = false; syncThemeSwatchUI(); syncLayoutPickerUI(); }
-    renderLibraryUI();
-    $('raw').dispatchEvent(new Event('input'));
+    // Re-render once the brand logos are inlined as data URIs, so a trip
+    // restored before this resolved still exports reliably - see the
+    // comment on preloadLogos() itself for why that inlining matters.
+    if (state.model) rerender();
   });
 })();

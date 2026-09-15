@@ -45,6 +45,57 @@ button{font-family:inherit; cursor:pointer}
    the UA rule for [hidden] and leave them permanently on screen. */
 [hidden]{display:none !important}
 
+/* Onboarding wizard -------------------------------------------------------
+   First visit only: full-page trip details, then the plan. The fields
+   themselves are the very same DOM nodes used in the sidebar afterwards -
+   moved in by JS, then moved back on Generate - so there is exactly one
+   copy of every input's state, never two to keep in sync. */
+.onboarding{
+  min-height:calc(100vh - var(--topbar-h)); background:var(--gray-100);
+  display:flex; align-items:flex-start; justify-content:center;
+  padding:56px 20px 80px; overflow-y:auto;
+}
+.onboard-card{
+  width:100%; max-width:640px; background:var(--white); border-radius:20px;
+  box-shadow:0 1px 3px rgba(0,0,0,.06), 0 24px 60px rgba(0,0,0,.08);
+  padding:44px 48px 40px; position:relative;
+}
+.onboard-progress{display:flex; justify-content:center; gap:7px; margin-bottom:32px}
+.onboard-dot{width:7px; height:7px; border-radius:50%; background:var(--gray-300); transition:.2s}
+.onboard-dot.active{background:var(--cta); width:20px; border-radius:4px}
+
+.onboard-step{display:none}
+.onboard-step.active{display:block}
+.onboard-back{
+  background:none; border:none; padding:0; margin-bottom:18px;
+  font-size:13px; font-weight:500; color:var(--gray-500); cursor:pointer;
+}
+.onboard-back:hover{color:var(--black)}
+
+.onboard-head{margin-bottom:8px; text-align:center}
+.onboard-head h1{
+  font-family:var(--font); font-weight:700; font-size:26px; letter-spacing:-.02em;
+  margin:0 0 10px; color:var(--black);
+}
+.onboard-head p{font-size:14px; color:var(--muted); line-height:1.55; margin:0 auto; max-width:46ch}
+.onboard-head p b{color:var(--ink); font-weight:600}
+
+.onboard-slot{margin-top:28px}
+/* The moved field-groups no longer need their own bottom margin here - the
+   card's own padding already gives the page room to breathe. */
+.onboard-slot .field-group{margin-bottom:0}
+.onboard-slot .group-title,
+.onboard-slot .group-hint{display:none}
+
+.onboard-actions{display:flex; align-items:center; justify-content:flex-end; margin-top:8px}
+.btn-onboard{width:auto; padding:13px 30px}
+
+@media (max-width:600px){
+  .onboarding{padding:32px 14px 60px}
+  .onboard-card{padding:32px 22px 28px; border-radius:16px}
+  .onboard-head h1{font-size:22px}
+}
+
 /* Top bar --------------------------------------------------------------- */
 .topbar{
   height:var(--topbar-h); background:var(--black); color:var(--white);
