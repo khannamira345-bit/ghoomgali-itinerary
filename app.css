@@ -49,51 +49,86 @@ button{font-family:inherit; cursor:pointer}
    First visit only: full-page trip details, then the plan. The fields
    themselves are the very same DOM nodes used in the sidebar afterwards -
    moved in by JS, then moved back on Generate - so there is exactly one
-   copy of every input's state, never two to keep in sync. */
-/* A genuine full page, not a card floating on a backdrop: the same white
-   the rest of the tool uses, filling the full viewport, with just a
-   centered column so the form itself stays a readable width. */
+   copy of every input's state, never two to keep in sync.
+
+   Styled as a preview of the document itself, not a generic form: the same
+   Abyss background, Newsreader serif with a gold accent word, and the faint
+   circular arcs the itinerary's own cover page uses - so setting up a trip
+   already looks like the brand, the way the AI trip planners researched for
+   this all commit to a bold, particular look rather than a plain form. */
 .onboarding{
-  min-height:calc(100vh - var(--topbar-h)); background:var(--white);
-  display:flex; align-items:flex-start; justify-content:center;
-  padding:64px 24px 100px; overflow-y:auto;
+  min-height:calc(100vh - var(--topbar-h)); background:#0C2027; color:#EEE9E3;
+  display:flex; flex-direction:column; align-items:center;
+  padding:56px 24px 100px; overflow-y:auto; position:relative;
 }
-.onboard-card{
-  width:100%; max-width:640px; position:relative;
+.onboard-arc{
+  position:absolute; border-radius:50%; border:1px solid rgba(65,191,143,.18);
+  pointer-events:none;
 }
+.onboard-arc.a1{width:820px; height:820px; right:-320px; top:-280px}
+.onboard-arc.a2{width:1200px; height:1200px; left:-480px; bottom:-680px; border-color:rgba(65,191,143,.1)}
+
+.onboard-card{width:100%; max-width:600px; position:relative; z-index:1}
+.onboard-logo{width:112px; height:auto; display:block; margin:0 auto 40px}
+
 .onboard-progress{display:flex; justify-content:center; gap:7px; margin-bottom:32px}
-.onboard-dot{width:7px; height:7px; border-radius:50%; background:var(--gray-300); transition:.2s}
-.onboard-dot.active{background:var(--cta); width:20px; border-radius:4px}
+.onboard-dot{width:7px; height:7px; border-radius:50%; background:rgba(238,233,227,.24); transition:.2s}
+.onboard-dot.active{background:#E7C547; width:20px; border-radius:4px}
 
 .onboard-step{display:none}
 .onboard-step.active{display:block}
 .onboard-back{
   background:none; border:none; padding:0; margin-bottom:18px;
-  font-size:13px; font-weight:500; color:var(--gray-500); cursor:pointer;
+  font-size:13px; font-weight:500; color:rgba(238,233,227,.55); cursor:pointer;
 }
-.onboard-back:hover{color:var(--black)}
+.onboard-back:hover{color:#E7C547}
 
-.onboard-head{margin-bottom:8px; text-align:center}
+.onboard-head{margin-bottom:28px; text-align:center}
 .onboard-head h1{
-  font-family:var(--font); font-weight:700; font-size:26px; letter-spacing:-.02em;
-  margin:0 0 10px; color:var(--black);
+  font-family:'Newsreader',Georgia,'Times New Roman',serif; font-weight:300; font-size:38px;
+  letter-spacing:-.015em; line-height:1.15; margin:0 0 12px; color:#EEE9E3;
 }
-.onboard-head p{font-size:14px; color:var(--muted); line-height:1.55; margin:0 auto; max-width:46ch}
-.onboard-head p b{color:var(--ink); font-weight:600}
+.onboard-head h1 em{font-style:italic; color:#E7C547}
+.onboard-head p{
+  font-size:14px; color:rgba(238,233,227,.62); line-height:1.55; margin:0 auto; max-width:46ch;
+}
+.onboard-head p b{color:#EEE9E3; font-weight:600}
 
-.onboard-slot{margin-top:28px}
+.onboard-slot{margin-top:4px}
 /* The moved field-groups no longer need their own bottom margin here - the
-   card's own padding already gives the page room to breathe. */
+   page's own padding already gives it room to breathe. */
 .onboard-slot .field-group{margin-bottom:0}
 .onboard-slot .group-title,
 .onboard-slot .group-hint{display:none}
 
-.onboard-actions{display:flex; align-items:center; justify-content:flex-end; margin-top:8px}
+/* Text that sits directly on the dark page (not inside a white input) needs
+   its own lighter palette - the sidebar's grey reads fine on white, not on
+   Abyss. Scoped to .onboarding so nothing outside the wizard is touched. */
+.onboarding .field span{color:rgba(238,233,227,.6)}
+.onboarding .field span em{color:rgba(238,233,227,.4)}
+.onboarding .theme-label{color:rgba(238,233,227,.6)}
+.onboarding .theme-hint{color:rgba(238,233,227,.5)}
+.onboarding .btn-link{color:#EEE9E3; text-decoration-color:rgba(238,233,227,.35)}
+.onboarding .btn-link:hover{color:#E7C547; text-decoration-color:#E7C547}
+.onboarding .counter{color:rgba(238,233,227,.45)}
+.onboarding .tips{border-top-color:rgba(238,233,227,.16)}
+.onboarding .tips summary{color:rgba(238,233,227,.7)}
+.onboarding .tips ul,
+.onboarding .tips p{color:rgba(238,233,227,.55)}
+.onboarding .tips li b{color:#EEE9E3}
+/* The dark CTA rule that makes sense on the light sidebar would disappear
+   against this same dark page - Mint takes over as the primary colour for
+   any button rendered inside the wizard specifically. */
+.onboarding .btn-primary{background:var(--accent); border-color:var(--accent)}
+.onboarding .btn-primary:hover{background:var(--accent-dark); border-color:var(--accent-dark)}
+
+.onboard-actions{display:flex; align-items:center; justify-content:flex-end; margin-top:24px}
 .btn-onboard{width:auto; padding:13px 30px}
 
 @media (max-width:600px){
-  .onboarding{padding:36px 20px 60px}
-  .onboard-head h1{font-size:22px}
+  .onboarding{padding:40px 20px 60px}
+  .onboard-logo{width:92px; margin-bottom:32px}
+  .onboard-head h1{font-size:28px}
 }
 
 /* Top bar --------------------------------------------------------------- */

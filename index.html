@@ -26,7 +26,12 @@
      moving the very same fields back into the sidebar - one set of inputs,
      no separate state to keep in sync. -->
 <div class="onboarding" id="onboarding">
+  <div class="onboard-arc a1" aria-hidden="true"></div>
+  <div class="onboard-arc a2" aria-hidden="true"></div>
+
   <div class="onboard-card">
+    <img class="onboard-logo" src="assets/logos/lockup-white.svg" alt="Ghoom Gali">
+
     <div class="onboard-progress">
       <span class="onboard-dot active" data-step="1"></span>
       <span class="onboard-dot" data-step="2"></span>
@@ -34,7 +39,7 @@
 
     <div class="onboard-step active" id="onboardStep1">
       <div class="onboard-head">
-        <h1>Let's set up your trip</h1>
+        <h1>Let's plan your <em>next escape.</em></h1>
         <p>A few details for the cover and overview pages. Leave anything blank to hide it later.</p>
       </div>
       <div class="onboard-slot" id="onboardSlot1"><!-- Trip details field-group moves here --></div>
@@ -47,7 +52,7 @@
     <div class="onboard-step" id="onboardStep2">
       <button type="button" class="onboard-back" id="btnOnboardBack">&larr; Back</button>
       <div class="onboard-head">
-        <h1>Now paste the plan</h1>
+        <h1>Now, <em>paste the plan.</em></h1>
         <p>WhatsApp messages, an email, rough bullets - whatever you have. Start each day with <b>Day 1</b>, <b>Day 2</b> and so on.</p>
       </div>
       <div class="onboard-slot" id="onboardSlot2"><!-- Paste the plan field-group moves here --></div>
