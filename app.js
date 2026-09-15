@@ -22,7 +22,8 @@
 
   var state = {
     model: null, zoom: 0, photoPath: null, activeCard: null,
-    library: {}, libDest: null, libCat: 'hotel', libDay: 0
+    library: {}, libDest: null, libCat: 'hotel', libDay: 0, libSearch: '',
+    itinOpen: {}
   };
 
   /* Used by the activity library: a blank model to click items into when
@@ -61,6 +62,58 @@
     }, obj);
   }
 
+  function pad2(n) { return (n < 10 ? '0' : '') + n; }
+
+  /* Every field with the same data-path - the preview's contenteditable
+     nodes and the Build panel's plain inputs alike - stays in sync without a
+     full rerender, whichever side was actually edited. */
+  function mirrorFieldValue(path, value, exceptNode) {
+    Array.prototype.slice.call(document.querySelectorAll('[data-path="' + path + '"]'))
+      .forEach(function (other) {
+        if (other === exceptNode) return;
+        if (other.tagName === 'INPUT' || other.tagName === 'TEXTAREA') {
+          if (other.value !== value) other.value = value;
+        } else if (other.textContent.trim() !== value) {
+          other.textContent = value;
+        }
+      });
+  }
+
+  /* Used by the Build panel's plain inputs (Itinerary cards, Document lists) -
+     the same edit the preview's contenteditable nodes already apply on
+     'input', minus the caret-sensitive DOM node itself. */
+  function applyFieldEdit(path, value, sourceNode) {
+    if (!state.model) return;
+    setPath(state.model, path, value);
+
+    if (/\.priceText$/.test(path)) {
+      setPath(state.model, path.replace(/Text$/, ''), window.GGParser.toNumber(value));
+    } else if (/\.totalText$/.test(path)) {
+      var d = getPath(state.model, path.replace(/\.totalText$/, ''));
+      if (d) { d.total = window.GGParser.toNumber(value); d.totalLocked = true; }
+    }
+
+    mirrorFieldValue(path, value, sourceNode);
+
+    if (/^meta\./.test(path)) {
+      var key = path.slice(5);
+      if (FIELDS.indexOf(key) > -1 && $('f-' + key)) $('f-' + key).value = value;
+    }
+    updateTripName();
+    save();
+  }
+
+  /* A price or total is edited as text but lives in the model as a number -
+     the display only settles once the field is done being typed into. */
+  function commitIfNumeric(path) {
+    if (!state.model || !/\.(priceText|totalText)$/.test(path)) return;
+    window.GGParser.recompute(state.model);
+    rerender();
+    renderItinerary();
+    refreshCosting();
+    save();
+  }
+
   /* ---- chrome ----------------------------------------------------------- */
 
   var toastTimer;
@@ -89,17 +142,93 @@
   function save() {
     clearTimeout(saveTimer);
     saveTimer = setTimeout(function () {
-      try {
-        localStorage.setItem(STORE, JSON.stringify({
-          model: state.model, raw: $('raw').value, fields: readFields(),
-          themeChoice: $('f-theme').value, layoutChoice: $('f-layout').value
-        }));
-        var s = $('saveState');
-        s.classList.add('on');
-        setTimeout(function () { s.classList.remove('on'); }, 1400);
-      } catch (e) { /* private window or quota - not fatal */ }
+      persistNow();
+      if (!restoringHistory) pushHistory();
     }, 700);
   }
+
+  function persistNow() {
+    try {
+      localStorage.setItem(STORE, JSON.stringify({
+        model: state.model, raw: $('raw').value, fields: readFields(),
+        themeChoice: $('f-theme').value, layoutChoice: $('f-layout').value
+      }));
+      var s = $('saveState');
+      s.classList.add('on');
+      setTimeout(function () { s.classList.remove('on'); }, 1400);
+    } catch (e) { /* private window or quota - not fatal */ }
+  }
+
+  /* ---- undo / redo --------------------------------------------------------
+     A history of whole-model snapshots. save() itself is already debounced
+     700ms after the last edit, so a burst of keystrokes or a rapid sequence
+     of clicks collapses into one undo step, the way most editors group them. */
+
+  var history = [];
+  var historyIndex = -1;
+  var restoringHistory = false;
+
+  function pushHistory() {
+    if (!state.model) return;
+    var snap = JSON.stringify(state.model);
+    if (history[historyIndex] === snap) return;
+    history = history.slice(0, historyIndex + 1);
+    history.push(snap);
+    if (history.length > 50) history.shift();
+    historyIndex = history.length - 1;
+    updateHistoryButtons();
+  }
+
+  function resetHistory() {
+    history = state.model ? [JSON.stringify(state.model)] : [];
+    historyIndex = history.length - 1;
+    updateHistoryButtons();
+  }
+
+  function updateHistoryButtons() {
+    if ($('btnUndo')) $('btnUndo').disabled = historyIndex <= 0;
+    if ($('btnRedo')) $('btnRedo').disabled = historyIndex >= history.length - 1;
+  }
+
+  function goHistory(delta) {
+    var idx = historyIndex + delta;
+    if (idx < 0 || idx >= history.length) return;
+    historyIndex = idx;
+    restoringHistory = true;
+    state.model = JSON.parse(history[idx]);
+    rerender();
+    writeFields(state.model.meta);
+    writeCostInputs();
+    refreshCosting();
+    renderItinerary();
+    renderDocLists();
+    renderLibraryUI();
+    updateTripName();
+    persistNow();
+    restoringHistory = false;
+    updateHistoryButtons();
+  }
+
+  var btnUndo = $('btnUndo'), btnRedo = $('btnRedo');
+  if (btnUndo) btnUndo.addEventListener('click', function () { goHistory(-1); });
+  if (btnRedo) btnRedo.addEventListener('click', function () { goHistory(1); });
+
+  function updateTripName() {
+    var el = $('tripName');
+    if (!el) return;
+    var m = state.model && state.model.meta;
+    var name = m ? [m.title, m.titleAccent].filter(Boolean).join(' ').replace(/[.]+$/, '') : '';
+    el.textContent = name || 'Untitled trip';
+  }
+
+  /* Any open ••• menu or dropdown closes when another one opens, or when
+     the user clicks anywhere else - a single shared listener for all of them. */
+  function closeAllPopovers() {
+    Array.prototype.slice.call(document.querySelectorAll('.itin-menu-pop')).forEach(function (m) { m.hidden = true; });
+    var em = $('exportMenuTop');
+    if (em) { em.hidden = true; $('btnExportTop').setAttribute('aria-expanded', 'false'); }
+  }
+  document.addEventListener('click', closeAllPopovers);
 
   function readFields() {
     var out = {};
@@ -127,8 +256,12 @@
       state.model = data.model;
       rerender();
       writeCostInputs();
-      refreshCostReview();
+      refreshCosting();
       renderLibraryUI();
+      renderItinerary();
+      renderDocLists();
+      updateTripName();
+      resetHistory();
       return true;
     }
     return false;
@@ -156,9 +289,13 @@
 
     window.GGParser.recompute(model);
 
-    if (state.model) carryPhotos(state.model, model);
+    if (state.model) {
+      carryPhotos(state.model, model);
+      pushHistory();          // capture the pre-regenerate state as its own undo step
+    }
 
     state.model = model;
+    updateTripName();
     // Must run before rerender(): pagination measures real scrollHeight, and
     // the wizard leaves the split view hidden until this point - rendering
     // into a still-hidden ancestor is the same mis-measurement bug a hidden
@@ -167,10 +304,13 @@
     rerender();
     writeFields(model.meta);
     writeCostInputs();
-    refreshCostReview();
+    refreshCosting();
     state.libDay = 0;
     renderLibraryUI();
+    renderItinerary();
+    renderDocLists();
     save();
+    setBuildTab('itinerary');
 
     if (!model.days.length) {
       toast('No days found — start lines with "Day 1", "Day 2" and generate again.', true);
@@ -212,6 +352,8 @@
     emptyState.hidden = true;
     applyZoom();
     paperScroll.scrollTop = top;
+    setupPageObserver();
+    updateTripName();
   }
 
   function applyZoom() {
@@ -245,11 +387,10 @@
       if (d) { d.total = window.GGParser.toNumber(value); d.totalLocked = true; }
     }
 
-    // The same value can appear on more than one page.
-    Array.prototype.slice.call(docEl.querySelectorAll('[data-path="' + path + '"]'))
-      .forEach(function (other) {
-        if (other !== node && other.textContent.trim() !== value) other.textContent = value;
-      });
+    // The same value can appear on more than one page, and now also in the
+    // Itinerary/Document tabs of the Build panel - so this mirrors document-wide,
+    // not just within the preview.
+    mirrorFieldValue(path, value, node);
 
     if (/^meta\./.test(path)) {
       var key = path.slice(5);
@@ -263,11 +404,7 @@
   docEl.addEventListener('focusout', function (e) {
     var node = e.target.closest('[data-path]');
     if (!node || !state.model) return;
-    if (!/\.(priceText|totalText)$/.test(node.dataset.path)) return;
-    window.GGParser.recompute(state.model);
-    rerender();
-    refreshCostReview();
-    save();
+    commitIfNumeric(node.dataset.path);
   });
 
   docEl.addEventListener('paste', function (e) {
@@ -307,6 +444,7 @@
       shrink(r.result, 1600, function (dataUrl) {
         setPath(state.model, path, dataUrl);
         rerender();
+        renderItinerary();
         save();
         toast('Photo added.');
       });
@@ -399,51 +537,44 @@
     itemTools.hidden = true;
     window.GGParser.recompute(state.model);
     rerender();
-    refreshCostReview();
+    renderItinerary();
+    refreshCosting();
     save();
   });
 
-  /* ---- exports ---------------------------------------------------------- */
+  /* ---- exports ------------------------------------------------------------
+     One menu in the topbar for every export kind, rather than a separate
+     button per action - PDF and "Save project" are the two most reached for,
+     the rest sit below a divider. */
 
-  $('btnPdf').addEventListener('click', async function () {
-    if (!state.model) { toast('Generate an itinerary first.', true); return; }
-    var pages = docEl.querySelectorAll('.page').length;
-    overlay(true, 'Building your PDF', 'Preparing ' + pages + ' pages…');
-    try {
-      await window.GGExport.pdf(docEl, state.model, function (i, n) {
-        $('overlayMsg').textContent = 'Rendering page ' + i + ' of ' + n + '…';
-      });
-      overlay(false);
-      toast('PDF saved to your Downloads folder — ' + pages + ' pages, print ready.');
-    } catch (err) {
-      overlay(false);
-      toast('PDF failed: ' + err.message, true);
-    }
-  });
-
-  $('btnExport').addEventListener('click', function (e) {
+  $('btnExportTop').addEventListener('click', function (e) {
     e.stopPropagation();
-    var menu = $('exportMenu');
+    closeAllPopovers();
+    var menu = $('exportMenuTop');
     menu.hidden = !menu.hidden;
-    $('btnExport').setAttribute('aria-expanded', String(!menu.hidden));
+    $('btnExportTop').setAttribute('aria-expanded', String(!menu.hidden));
   });
 
-  document.addEventListener('click', function () {
-    $('exportMenu').hidden = true;
-    $('btnExport').setAttribute('aria-expanded', 'false');
-  });
-
-  $('exportMenu').addEventListener('click', async function (e) {
+  $('exportMenuTop').addEventListener('click', async function (e) {
     var btn = e.target.closest('button');
     if (!btn) return;
     var kind = btn.dataset.export;
-    $('exportMenu').hidden = true;
+    $('exportMenuTop').hidden = true;
+    $('btnExportTop').setAttribute('aria-expanded', 'false');
 
     if (kind === 'open') { fileProject.value = ''; fileProject.click(); return; }
     if (!state.model) { toast('Generate an itinerary first.', true); return; }
 
     try {
-      if (kind === 'docx') {
+      if (kind === 'pdf') {
+        var pages = docEl.querySelectorAll('.page').length;
+        overlay(true, 'Building your PDF', 'Preparing ' + pages + ' pages…');
+        await window.GGExport.pdf(docEl, state.model, function (i, n) {
+          $('overlayMsg').textContent = 'Rendering page ' + i + ' of ' + n + '…';
+        });
+        overlay(false);
+        toast('PDF saved to your Downloads folder — ' + pages + ' pages, print ready.');
+      } else if (kind === 'docx') {
         overlay(true, 'Building the Word file', 'Packing text and photos…');
         await window.GGExport.docx(state.model);
         overlay(false);
@@ -473,11 +604,15 @@
       endOnboarding();
       rerender();
       writeCostInputs();
-      refreshCostReview();
+      refreshCosting();
       state.libDay = 0;
       renderLibraryUI();
+      renderItinerary();
+      renderDocLists();
       save();
+      resetHistory();
       toast('Project loaded — ' + model.days.length + ' days.');
+      setBuildTab('itinerary');
       setTimeout(showPreviewOnMobile, 0);
     } catch (err) {
       toast(err.message, true);
@@ -489,6 +624,45 @@
   /* The costing panel is the review step: every figure, margin included, is
      visible here before anything is downloaded. What reaches the traveller's
      PDF is controlled separately by the "show margin" box. */
+  function refreshCosting() {
+    refreshQuoSummary();
+    refreshCostReview();
+  }
+
+  /* The client-facing summary at the top of the Quotation tab - Subtotal,
+     Discount, GST/TCS, Client Total. Margin never appears here; the full
+     internal breakdown (including margin) stays inside the Advanced disclosure. */
+  function refreshQuoSummary() {
+    var box = $('quoSummary');
+    if (!state.model || !state.model.pricing) {
+      box.innerHTML = '<div class="quo-empty">Generate an itinerary to see the costing.</div>';
+      return;
+    }
+    var p = state.model.pricing;
+    var money = window.GGParser.money;
+    box.textContent = '';
+
+    function row(label, amount, cls, prefix) {
+      if (amount == null || !isFinite(amount) || !amount) return;
+      var d = document.createElement('div');
+      d.className = 'row' + (cls ? ' ' + cls : '');
+      var dt = document.createElement('dt');
+      dt.textContent = label;
+      var dd = document.createElement('dd');
+      dd.textContent = (prefix || '') + money(amount, 'INR');
+      d.appendChild(dt); d.appendChild(dd);
+      box.appendChild(d);
+    }
+
+    row('Subtotal', p.subtotal);
+    row('Discount', p.discount, 'row--discount', '− ');
+    if (p.gst) row('GST ' + p.gstPct + '%', p.gst);
+    if (p.tcs) row('TCS ' + p.tcsPct + '%', p.tcs);
+    row('Client total', p.grandTotal, 'row--grand');
+    if (p.perPerson) row('Per person (÷ ' + p.heads + ')', p.perPerson);
+    if (!p.subtotal && !p.grandTotal) box.innerHTML = '<div class="quo-empty">Add a price to a day or hotel to see the costing.</div>';
+  }
+
   function refreshCostReview() {
     var box = $('costReview');
     if (!state.model || !state.model.pricing) {
@@ -551,7 +725,7 @@
       if (id === 'c-tcs') p.tcsPct = numOrNull($(id).value);
       if (id === 'c-discount') p.discount = numOrNull($(id).value);
       window.GGParser.recompute(state.model);
-      refreshCostReview();
+      refreshCosting();
       rerender();
       save();
     });
@@ -609,6 +783,14 @@
      internal rendering pass (export.js asks for a 794px-wide context) never
      finds a reason to hide anything - see the CSS comment on the class
      itself for why this can't be a plain width-based media query. */
+  /* A couple of topbar labels are too long for a phone-width bar - shortened
+     there only, so the bar never needs a horizontal scroll of its own. */
+  function updateChromeForWidth() {
+    var narrow = window.matchMedia('(max-width:520px)').matches;
+    var resetBtn = $('btnReset');
+    if (resetBtn) resetBtn.textContent = narrow ? 'New' : 'New itinerary';
+  }
+
   function setMobileTab(tab) {
     if (!splitEl) return;
     splitEl.classList.toggle('tab-build', tab === 'build');
@@ -628,6 +810,7 @@
   window.addEventListener('resize', function () {
     var current = splitEl && splitEl.classList.contains('tab-preview') ? 'preview' : 'build';
     setMobileTab(current);
+    updateChromeForWidth();
   });
 
   if (mobileTabs) {
@@ -790,12 +973,14 @@
 
     var wrap = $('libItems');
     wrap.textContent = '';
-    var shown = items.filter(function (it) { return it.category === state.libCat; });
+    var shown = filteredLibraryItems(items);
     if (!shown.length) {
       var e = document.createElement('div');
       e.className = 'lib-empty';
       e.style.marginTop = '0';
-      e.textContent = 'No ' + (window.GGLibrary.CAT_LABEL[state.libCat] || '').toLowerCase() + ' in this destination yet.';
+      e.textContent = state.libSearch
+        ? 'Nothing matches "' + state.libSearch + '" here.'
+        : 'No ' + (window.GGLibrary.CAT_LABEL[state.libCat] || '').toLowerCase() + ' in this destination yet.';
       wrap.appendChild(e);
       return;
     }
@@ -929,8 +1114,9 @@
     window.GGParser.recompute(model);
     rerender();
     writeCostInputs();
-    refreshCostReview();
+    refreshCosting();
     renderLibraryUI();
+    renderItinerary();
     save();
     toast(item.category === 'hotel'
       ? item.name + ' added as a stay.'
@@ -993,6 +1179,7 @@
       window.GGParser.recompute(model);
       rerender();
       renderLibraryUI();
+      renderItinerary();
       save();
       return;
     }
@@ -1005,10 +1192,489 @@
   $('libItems').addEventListener('click', function (e) {
     var btn = e.target.closest('.lib-item-add');
     if (!btn || btn.disabled) return;
-    var items = (state.library[state.libDest] || []).filter(function (it) { return it.category === state.libCat; });
+    var items = filteredLibraryItems(state.library[state.libDest] || []);
     var item = items[+btn.dataset.itemIndex];
     if (item) addLibraryItem(item);
   });
+
+  /* Shared by the render and the click handler so both agree on exactly
+     which items - and which index - are on screen right now. */
+  function filteredLibraryItems(items) {
+    var byCat = items.filter(function (it) { return it.category === state.libCat; });
+    var q = (state.libSearch || '').trim().toLowerCase();
+    if (!q) return byCat;
+    return byCat.filter(function (it) {
+      return ((it.name || '') + ' ' + (it.description || '')).toLowerCase().indexOf(q) > -1;
+    });
+  }
+
+  var libSearchEl = $('libSearch');
+  if (libSearchEl) {
+    libSearchEl.addEventListener('input', function () {
+      state.libSearch = libSearchEl.value;
+      renderLibraryUI();
+    });
+  }
+
+  /* ---- build navigation ----------------------------------------------------
+     Overview / Itinerary / Activities / Quotation / Document - the whole
+     tool used to read as one long form; grouping it like this, with the
+     itinerary itself as the centrepiece, is the actual point of this pass. */
+
+  var buildTabs = $('buildTabs');
+  var SECTION_PAGE_LABEL = { overview: 'Package summary', quotation: 'Cost summary', document: 'Before you' };
+
+  function setBuildTab(name) {
+    Array.prototype.slice.call(document.querySelectorAll('.build-tab')).forEach(function (b) {
+      b.classList.toggle('active', b.dataset.section === name);
+    });
+    Array.prototype.slice.call(document.querySelectorAll('.build-section')).forEach(function (s) {
+      s.classList.toggle('active', s.dataset.section === name);
+    });
+    var scrollEl = document.querySelector('.panel-scroll');
+    if (scrollEl) scrollEl.scrollTop = 0;
+    scrollPreviewToSection(name);
+  }
+
+  /* A loose, best-effort link from a Build tab to the matching page - matched
+     by the label already printed in each page's own header, so it needs no
+     extra bookkeeping in render.js. */
+  function scrollPreviewToSection(name) {
+    if (!state.model) return;
+    var key = SECTION_PAGE_LABEL[name];
+    if (!key) return;
+    var labels = docEl.querySelectorAll('.l1');
+    for (var i = 0; i < labels.length; i++) {
+      if (labels[i].textContent.indexOf(key) === 0) {
+        var page = labels[i].closest('.page');
+        if (page) page.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        return;
+      }
+    }
+  }
+
+  function scrollPreviewToCard(base) {
+    var node = docEl.querySelector('[data-card="' + base + '"]');
+    if (!node) return;
+    if (isMobile()) setMobileTab('preview');
+    node.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    node.classList.add('flash-highlight');
+    setTimeout(function () { node.classList.remove('flash-highlight'); }, 1400);
+  }
+
+  function scrollPreviewToDay(i) {
+    var node = docEl.querySelector('[data-day-head="days.' + i + '"]');
+    if (!node) return;
+    if (isMobile()) setMobileTab('preview');
+    node.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  if (buildTabs) {
+    buildTabs.addEventListener('click', function (e) {
+      var b = e.target.closest('.build-tab');
+      if (b) setBuildTab(b.dataset.section);
+    });
+  }
+
+  /* ---- itinerary tab ---------------------------------------------------
+     Day cards instead of one long form: a compact row per activity, opened
+     only on click. Everything here writes straight into state.model at the
+     same paths the preview's own contenteditable nodes use, so both sides
+     of the split stay in sync without a second copy of the data. */
+
+  var itinDaysEl = $('itinDays');
+  var dragSrc = null;
+
+  function renderItinerary() {
+    if (!itinDaysEl) return;
+    itinDaysEl.textContent = '';
+    var days = state.model ? state.model.days : [];
+    if (!days || !days.length) {
+      itinDaysEl.appendChild(el('div', 'itin-empty',
+        'No days yet — paste your plan below, or add a day and build it from the Activity Library.'));
+      return;
+    }
+    days.forEach(function (day, i) { itinDaysEl.appendChild(dayCardEl(day, i)); });
+  }
+
+  function labeledField(tag, label, path, value, type) {
+    var wrap = el('div', 'itin-field');
+    wrap.appendChild(el('span', null, label));
+    var input = document.createElement(tag);
+    if (tag === 'input') input.type = type || 'text';
+    input.value = value != null ? value : '';
+    input.dataset.path = path;
+    input.addEventListener('input', function () {
+      applyFieldEdit(path, input.value, input);
+      commitIfNumeric(path);
+    });
+    wrap.appendChild(input);
+    return wrap;
+  }
+
+  function photoFieldEl(path, url) {
+    var wrap = el('div', 'itin-field itin-photo-field');
+    wrap.appendChild(el('span', null, 'Photo'));
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn-outline btn-sm';
+    btn.textContent = url ? 'Replace photo' : 'Add photo';
+    btn.addEventListener('click', function () {
+      state.photoPath = path;
+      filePhoto.value = '';
+      filePhoto.click();
+    });
+    wrap.appendChild(btn);
+    return wrap;
+  }
+
+  function itinMenuEl(actions, onAct) {
+    var wrap = el('div', 'itin-activity-menu');
+    var btn = document.createElement('button');
+    btn.type = 'button'; btn.className = 'itin-menu-btn'; btn.textContent = '•••'; btn.title = 'More actions';
+    wrap.appendChild(btn);
+
+    var menu = el('div', 'itin-menu-pop');
+    menu.hidden = true;
+    actions.forEach(function (a) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.dataset.act = a[0]; b.textContent = a[1];
+      if (a[0] === 'delete') b.className = 'danger';
+      menu.appendChild(b);
+    });
+    wrap.appendChild(menu);
+
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var wasHidden = menu.hidden;
+      closeAllPopovers();
+      menu.hidden = !wasHidden;
+    });
+    menu.addEventListener('click', function (e) {
+      var b = e.target.closest('button[data-act]');
+      if (!b) return;
+      e.stopPropagation();
+      menu.hidden = true;
+      onAct(b.dataset.act);
+    });
+    return wrap;
+  }
+
+  function renumberDays(model) {
+    model.days.forEach(function (d, i) { d.n = i + 1; });
+  }
+
+  function dayCardEl(day, i) {
+    var card = el('div', 'itin-day');
+    card.dataset.dayIndex = i;
+
+    var head = el('div', 'itin-day-head');
+    var numSpan = el('span', 'itin-day-num', 'DAY ' + pad2(day.n || i + 1));
+    numSpan.title = 'Jump to this day in the preview';
+    numSpan.addEventListener('click', function () { scrollPreviewToDay(i); });
+    head.appendChild(numSpan);
+
+    var titleInput = document.createElement('input');
+    titleInput.type = 'text'; titleInput.className = 'itin-day-title';
+    titleInput.value = day.title || ''; titleInput.placeholder = 'Day title';
+    titleInput.dataset.path = 'days.' + i + '.title';
+    titleInput.addEventListener('input', function () { applyFieldEdit('days.' + i + '.title', titleInput.value, titleInput); });
+    head.appendChild(titleInput);
+
+    head.appendChild(itinMenuEl([['duplicate', 'Duplicate day'], ['delete', 'Delete day']], function (act) {
+      if (act === 'delete') {
+        if (state.model.days.length <= 1) { toast('An itinerary needs at least one day.', true); return; }
+        if (!confirm('Delete this day and everything in it?')) return;
+        state.model.days.splice(i, 1);
+      } else if (act === 'duplicate') {
+        var copy = JSON.parse(JSON.stringify(day));
+        state.model.days.splice(i + 1, 0, copy);
+      } else return;
+      renumberDays(state.model);
+      window.GGParser.recompute(state.model);
+      rerender(); renderItinerary(); refreshCosting(); save();
+    }));
+    card.appendChild(head);
+
+    var whenInput = document.createElement('input');
+    whenInput.type = 'text'; whenInput.className = 'itin-day-when';
+    whenInput.value = day.when || ''; whenInput.placeholder = 'Date · place';
+    whenInput.dataset.path = 'days.' + i + '.when';
+    whenInput.addEventListener('input', function () { applyFieldEdit('days.' + i + '.when', whenInput.value, whenInput); });
+    card.appendChild(whenInput);
+
+    var items = el('div', 'itin-items');
+    day.items.forEach(function (it, j) { items.appendChild(activityRowEl(it, i, j)); });
+    card.appendChild(items);
+
+    card.appendChild(addActivityButtonEl(i));
+    return card;
+  }
+
+  function activityRowEl(it, dayIdx, itemIdx) {
+    var base = 'days.' + dayIdx + '.items.' + itemIdx;
+    var row = el('div', 'itin-activity');
+    row.dataset.day = dayIdx; row.dataset.item = itemIdx;
+    row.draggable = true;
+
+    var open = !!state.itinOpen[base];
+
+    var summary = el('div', 'itin-activity-summary');
+    summary.appendChild(el('span', 'itin-activity-drag', '⠿'));
+    summary.appendChild(el('span', 'itin-activity-time', it.eyebrow || '—'));
+    summary.appendChild(el('span', 'itin-activity-title', it.title || 'Untitled activity'));
+    if (it.price != null) summary.appendChild(el('span', 'itin-activity-price', window.GGParser.money(it.price, 'INR')));
+    summary.appendChild(itinMenuEl(
+      [['up', 'Move up'], ['down', 'Move down'], ['duplicate', 'Duplicate'], ['delete', 'Delete']],
+      function (act) { runActivityAction(act, dayIdx, itemIdx); }
+    ));
+    row.appendChild(summary);
+
+    var detail = el('div', 'itin-activity-detail');
+    detail.hidden = !open;
+    detail.appendChild(labeledField('input', 'Name', base + '.title', it.title));
+    detail.appendChild(labeledField('input', 'Time / label', base + '.eyebrow', it.eyebrow));
+    detail.appendChild(labeledField('textarea', 'Description', base + '.detail', it.detail));
+    detail.appendChild(labeledField('input', 'Cost (₹)', base + '.priceText', it.price != null ? String(it.price) : '', 'number'));
+    detail.appendChild(labeledField('textarea', 'Notes', base + '.note', it.note));
+    detail.appendChild(photoFieldEl(base + '.image', it.image));
+    row.appendChild(detail);
+    if (open) row.classList.add('open');
+
+    summary.addEventListener('click', function (e) {
+      if (e.target.closest('.itin-activity-menu') || e.target.closest('.itin-activity-drag')) return;
+      var willOpen = detail.hidden;
+      detail.hidden = !willOpen;
+      row.classList.toggle('open', willOpen);
+      if (willOpen) { state.itinOpen[base] = true; scrollPreviewToCard(base); }
+      else delete state.itinOpen[base];
+    });
+
+    return row;
+  }
+
+  function runActivityAction(act, dayIdx, itemIdx) {
+    var list = state.model.days[dayIdx].items;
+    if (act === 'delete') list.splice(itemIdx, 1);
+    else if (act === 'up' && itemIdx > 0) list.splice(itemIdx - 1, 0, list.splice(itemIdx, 1)[0]);
+    else if (act === 'down' && itemIdx < list.length - 1) list.splice(itemIdx + 1, 0, list.splice(itemIdx, 1)[0]);
+    else if (act === 'duplicate') list.splice(itemIdx + 1, 0, JSON.parse(JSON.stringify(list[itemIdx])));
+    else return;
+    window.GGParser.recompute(state.model);
+    rerender(); renderItinerary(); refreshCosting(); save();
+  }
+
+  function addActivityButtonEl(dayIdx) {
+    var wrap = el('div', 'itin-add-activity');
+    var btn = document.createElement('button');
+    btn.type = 'button'; btn.className = 'itin-add-btn'; btn.textContent = '+ Add activity';
+    wrap.appendChild(btn);
+
+    var menu = el('div', 'itin-menu-pop itin-add-menu');
+    menu.hidden = true;
+    [['new', 'Create new'], ['library', 'From Activity Library'],
+     ['hotel', 'Hotel'], ['transfer', 'Transfer'], ['visa', 'Visa']].forEach(function (p) {
+      var b = document.createElement('button'); b.type = 'button'; b.dataset.act = p[0]; b.textContent = p[1];
+      menu.appendChild(b);
+    });
+    wrap.appendChild(menu);
+
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var wasHidden = menu.hidden;
+      closeAllPopovers();
+      menu.hidden = !wasHidden;
+    });
+    menu.addEventListener('click', function (e) {
+      var b = e.target.closest('button[data-act]');
+      if (!b) return;
+      e.stopPropagation();
+      menu.hidden = true;
+      addActivity(dayIdx, b.dataset.act);
+    });
+    return wrap;
+  }
+
+  function addActivity(dayIdx, kind) {
+    var model = ensureModel();
+    if (kind === 'library') {
+      setBuildTab('activities');
+      state.libDay = dayIdx;
+      renderLibraryUI();
+      if (libSearchEl) libSearchEl.focus();
+      return;
+    }
+    if (kind === 'hotel') {
+      model.hotels.push({ city: '', name: '', dates: '', nights: '', meta: '', price: null, bullets: [], badge: '', image: '' });
+      window.GGParser.recompute(model); rerender(); renderItinerary(); refreshCosting(); save();
+      toast('Hotel added — fill it in on the preview.');
+      return;
+    }
+    while (model.days.length <= dayIdx) {
+      var n = model.days.length + 1;
+      model.days.push({ n: n, when: '', title: 'Day ' + n, image: '', items: [], total: null });
+    }
+    var eyebrow = kind === 'transfer' ? 'Transfer' : kind === 'visa' ? 'Visa' : '';
+    model.days[dayIdx].items.push({
+      eyebrow: eyebrow, title: '', detail: '', bullets: [], note: '', price: null, image: '', part: 'morning'
+    });
+    window.GGParser.recompute(model);
+    rerender();
+    var newIdx = model.days[dayIdx].items.length - 1;
+    state.itinOpen['days.' + dayIdx + '.items.' + newIdx] = true;
+    renderItinerary();
+    refreshCosting();
+    save();
+    var input = itinDaysEl.querySelector(
+      '.itin-activity[data-day="' + dayIdx + '"][data-item="' + newIdx + '"] .itin-field input');
+    if (input) input.focus();
+  }
+
+  var btnAddDay = $('btnAddDay');
+  if (btnAddDay) {
+    btnAddDay.addEventListener('click', function () {
+      var model = ensureModel();
+      var n = model.days.length + 1;
+      model.days.push({ n: n, when: '', title: 'Day ' + n, image: '', items: [], total: null });
+      window.GGParser.recompute(model);
+      rerender(); renderItinerary(); refreshCosting(); save();
+    });
+  }
+
+  /* Drag to reorder activities, within a day or across days - plain HTML5
+     drag and drop, no library, just another set of array splices. */
+  if (itinDaysEl) {
+    itinDaysEl.addEventListener('dragstart', function (e) {
+      var row = e.target.closest('.itin-activity');
+      if (!row) return;
+      dragSrc = { day: +row.dataset.day, item: +row.dataset.item };
+      e.dataTransfer.effectAllowed = 'move';
+      row.classList.add('dragging');
+    });
+    itinDaysEl.addEventListener('dragend', function (e) {
+      var row = e.target.closest('.itin-activity');
+      if (row) row.classList.remove('dragging');
+      Array.prototype.slice.call(itinDaysEl.querySelectorAll('.drag-over')).forEach(function (r) {
+        r.classList.remove('drag-over');
+      });
+    });
+    itinDaysEl.addEventListener('dragover', function (e) {
+      if (!dragSrc) return;
+      var row = e.target.closest('.itin-activity');
+      if (!row) return;
+      e.preventDefault();
+      row.classList.add('drag-over');
+    });
+    itinDaysEl.addEventListener('dragleave', function (e) {
+      var row = e.target.closest('.itin-activity');
+      if (row) row.classList.remove('drag-over');
+    });
+    itinDaysEl.addEventListener('drop', function (e) {
+      var row = e.target.closest('.itin-activity');
+      if (!row || !dragSrc) { dragSrc = null; return; }
+      e.preventDefault();
+      row.classList.remove('drag-over');
+      var destDay = +row.dataset.day, destItem = +row.dataset.item;
+      var model = state.model;
+      var moved = model.days[dragSrc.day].items.splice(dragSrc.item, 1)[0];
+      if (dragSrc.day === destDay && dragSrc.item < destItem) destItem--;
+      model.days[destDay].items.splice(destItem, 0, moved);
+      window.GGParser.recompute(model);
+      rerender(); renderItinerary(); refreshCosting(); save();
+      dragSrc = null;
+    });
+  }
+
+  /* ---- document lists (inclusions / exclusions / terms) -------------------
+     Plain text lists that already exist in the model and print on their own
+     pages - editable here as add/remove rows, on top of editing them
+     directly in the preview the way every other line already works. */
+
+  var DOC_LISTS = { inclusions: 'docInclusions', exclusions: 'docExclusions', terms: 'docTerms' };
+
+  function renderDocList(key) {
+    var wrap = $(DOC_LISTS[key]);
+    if (!wrap) return;
+    wrap.textContent = '';
+    var arr = state.model ? state.model[key] : [];
+    if (!arr || !arr.length) {
+      wrap.appendChild(el('div', 'doc-list-empty', 'Nothing yet — add the first one below.'));
+      return;
+    }
+    arr.forEach(function (text, i) {
+      var path = key + '.' + i;
+      var row = el('div', 'doc-list-row');
+      var input = document.createElement('input');
+      input.type = 'text'; input.value = text; input.dataset.path = path;
+      input.addEventListener('input', function () { applyFieldEdit(path, input.value, input); });
+      row.appendChild(input);
+
+      var del = document.createElement('button');
+      del.type = 'button'; del.className = 'doc-list-del'; del.title = 'Remove'; del.textContent = '×';
+      del.addEventListener('click', function () {
+        state.model[key].splice(i, 1);
+        rerender(); renderDocLists(); save();
+      });
+      row.appendChild(del);
+      wrap.appendChild(row);
+    });
+  }
+
+  function renderDocLists() {
+    renderDocList('inclusions');
+    renderDocList('exclusions');
+    renderDocList('terms');
+  }
+
+  Array.prototype.slice.call(document.querySelectorAll('.doc-list-add')).forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var key = btn.dataset.list;
+      var model = ensureModel();
+      model[key].push('');
+      rerender(); renderDocLists(); save();
+      var wrap = $(DOC_LISTS[key]);
+      var last = wrap && wrap.querySelector('.doc-list-row:last-child input');
+      if (last) last.focus();
+    });
+  });
+
+  /* ---- preview toolbar extras --------------------------------------------- */
+
+  var pageObserver = null;
+  function setupPageObserver() {
+    if (pageObserver) pageObserver.disconnect();
+    var pages = Array.prototype.slice.call(docEl.querySelectorAll('.page'));
+    var indicatorEl = $('pageIndicator');
+    if (!pages.length) { if (indicatorEl) indicatorEl.textContent = ''; return; }
+    var visible = new Map();
+    pageObserver = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) { visible.set(en.target, en.intersectionRatio); });
+      var best = 0, bestRatio = 0;
+      pages.forEach(function (p, i) {
+        var r = visible.get(p) || 0;
+        if (r > bestRatio) { bestRatio = r; best = i; }
+      });
+      if (indicatorEl) indicatorEl.textContent = (best + 1) + ' / ' + pages.length;
+    }, { root: paperScroll, threshold: [0, 0.25, 0.5, 0.75, 1] });
+    pages.forEach(function (p) { pageObserver.observe(p); });
+    if (indicatorEl) indicatorEl.textContent = '1 / ' + pages.length;
+  }
+
+  var zoomLabelBtn = $('zoomLabel');
+  if (zoomLabelBtn) {
+    zoomLabelBtn.addEventListener('click', function () { state.zoom = 0; applyZoom(); });
+  }
+
+  var btnFullscreen = $('btnFullscreen');
+  if (btnFullscreen) {
+    btnFullscreen.addEventListener('click', function () {
+      var target = document.querySelector('.panel-preview');
+      var req = target.requestFullscreen || target.webkitRequestFullscreen;
+      var exit = document.exitFullscreen || document.webkitExitFullscreen;
+      if (!document.fullscreenElement) { if (req) req.call(target); }
+      else if (exit) exit.call(document);
+    });
+  }
 
   /* ---- form and misc ---------------------------------------------------- */
 
@@ -1052,14 +1718,20 @@
     syncLayoutPickerUI();
     ['c-margin', 'c-gst', 'c-tcs', 'c-discount'].forEach(function (id) { $(id).value = ''; });
     $('c-showMargin').checked = false;
-    refreshCostReview();
+    refreshCosting();
     // The library itself is reusable inventory, not part of one trip - it
     // is deliberately not cleared here.
     state.libDay = 0;
+    state.itinOpen = {};
     renderLibraryUI();
+    renderItinerary();
+    renderDocLists();
     docEl.textContent = '';
     emptyState.hidden = false;
     $('rawCount').textContent = '0 lines';
+    updateTripName();
+    resetHistory();
+    setBuildTab('overview');
     toast('Cleared. Ready for the next trip.');
     startOnboarding();
   });
@@ -1226,6 +1898,7 @@
   state.library = window.GGLibrary.loadLibrary();
 
   setMobileTab('build');
+  updateChromeForWidth();
 
   /* Both the wizard and the split view start hidden in the HTML, so there is
      no flash of the wrong one. The split view is revealed first because
@@ -1238,6 +1911,7 @@
   if (mobileTabs) mobileTabs.hidden = false;
   if (restore()) {
     if (onboardEl) onboardEl.hidden = true;
+    setBuildTab('itinerary');
   } else {
     emptyState.hidden = false;
     syncThemeSwatchUI();

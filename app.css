@@ -134,47 +134,79 @@ button{font-family:inherit; cursor:pointer}
 /* Top bar --------------------------------------------------------------- */
 .topbar{
   height:var(--topbar-h); background:var(--black); color:var(--white);
-  display:flex; align-items:center; gap:14px; padding:0 20px;
+  display:flex; align-items:center; gap:12px; padding:0 20px;
+  overflow-x:auto; scrollbar-width:none;
 }
-.topbar-logo{height:20px; width:auto; display:block; opacity:.95}
-.topbar-divider{width:1px; height:16px; background:rgba(255,255,255,.16)}
-.topbar-title{
-  font-size:13px; font-weight:590; letter-spacing:-.01em; color:rgba(255,255,255,.65);
+.topbar::-webkit-scrollbar{display:none}
+.topbar-logo{height:20px; width:auto; display:block; opacity:.95; flex:none}
+.topbar-divider{width:1px; height:16px; background:rgba(255,255,255,.16); flex:none}
+.trip-name{
+  font-size:13px; font-weight:600; letter-spacing:-.01em; color:rgba(255,255,255,.9);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:220px; flex:none;
 }
-.topbar-spacer{flex:1}
+.topbar-spacer{flex:1; min-width:12px}
 .save-state{
   font-size:12px; font-weight:500; color:rgba(255,255,255,.5);
-  opacity:0; transition:opacity .3s; display:flex; align-items:center; gap:6px;
+  opacity:0; transition:opacity .3s; display:flex; align-items:center; gap:6px; flex:none;
 }
 .save-state::before{
   content:""; width:5px; height:5px; border-radius:50%; background:var(--accent); flex:none;
 }
 .save-state.on{opacity:1}
+.history-btns{display:flex; gap:2px; flex:none}
+/* Neutral default (used on the white preview bar); the topbar override right
+   below swaps it for a version that reads on the dark bar instead. */
+.btn-icon{
+  background:var(--white); border:1px solid var(--gray-300); color:var(--gray-700);
+  font-size:13px; width:28px; height:28px; border-radius:8px; line-height:1; transition:.15s; flex:none;
+  display:grid; place-items:center;
+}
+.btn-icon:hover{border-color:var(--accent); color:var(--accent-dark)}
+.btn-icon:disabled{opacity:.35; cursor:not-allowed}
+.topbar .btn-icon{
+  background:transparent; border-color:rgba(255,255,255,.18); color:rgba(255,255,255,.75);
+}
+.topbar .btn-icon:hover{background:rgba(255,255,255,.1); color:var(--white); border-color:rgba(255,255,255,.18)}
+.topbar .btn-icon:disabled{opacity:.3}
 .btn-ghost{
   background:transparent; border:1px solid rgba(255,255,255,.22); color:var(--white);
-  font-size:12.5px; font-weight:500; padding:7px 14px; border-radius:999px; transition:.15s;
+  font-size:12.5px; font-weight:500; padding:7px 14px; border-radius:999px; transition:.15s; flex:none;
+  white-space:nowrap;
 }
 .btn-ghost:hover{background:rgba(255,255,255,.1); border-color:rgba(65,191,143,.6)}
+.topbar .dropdown{flex:none}
+.topbar .btn-outline{white-space:nowrap}
+
+/* Preview-panel controls rendered inside the dark topbar need light text -
+   the shared .btn-outline/.dropdown-menu rules elsewhere assume a white
+   surface, so this scopes just enough to read correctly here. */
+.topbar .btn-outline{background:transparent; color:var(--white); border-color:rgba(255,255,255,.28)}
+.topbar .btn-outline:hover{background:rgba(255,255,255,.1); border-color:var(--accent)}
 
 /* Split layout ------------------------------------------------------------ */
 .split{
-  display:grid; grid-template-columns:minmax(360px,30%) 1fr;
+  display:grid; grid-template-columns:minmax(380px,40%) 1fr;
   height:calc(100vh - var(--topbar-h));
 }
 .panel{min-width:0; min-height:0; display:flex; flex-direction:column}
 .panel-input{background:var(--white); border-right:1px solid var(--gray-200)}
-.panel-scroll{overflow-y:auto; padding:26px 26px 64px; scrollbar-width:thin}
+.panel-scroll{overflow-y:auto; padding:22px 26px 64px; scrollbar-width:thin}
 
-/* Steps --------------------------------------------------------------- */
-.steps{
-  display:flex; gap:6px; list-style:none; margin:0 0 26px; padding:0;
-  font-size:11.5px; font-weight:500; color:var(--muted);
+/* Build navigation ------------------------------------------------------- */
+.build-tabs{
+  flex:none; display:flex; gap:2px; padding:10px 18px 0; background:var(--white);
+  border-bottom:1px solid var(--gray-200); overflow-x:auto; scrollbar-width:none;
 }
-.steps li{display:flex; align-items:center; gap:7px; flex:1}
-.steps span{
-  width:19px; height:19px; border-radius:50%; background:var(--gray-100);
-  color:var(--gray-700); display:grid; place-items:center; font-size:10px; font-weight:600; flex:none;
+.build-tabs::-webkit-scrollbar{display:none}
+.build-tab{
+  flex:none; background:none; border:none; padding:9px 13px 12px;
+  font-size:13px; font-weight:600; color:var(--muted); border-bottom:2px solid transparent;
+  white-space:nowrap; transition:.15s;
 }
+.build-tab:hover{color:var(--ink)}
+.build-tab.active{color:var(--black); border-bottom-color:var(--cta)}
+.build-section{display:none}
+.build-section.active{display:block}
 
 /* Form ---------------------------------------------------------------- */
 .field-group{margin-bottom:34px}
@@ -426,6 +458,8 @@ button{font-family:inherit; cursor:pointer}
 .preview-hint{font-size:12px; color:var(--gray-500); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
 .preview-bar-right{display:flex; align-items:center; gap:8px; flex:none}
 
+.page-indicator{font-size:11.5px; color:var(--muted); font-variant-numeric:tabular-nums; white-space:nowrap}
+
 .zoom{display:flex; align-items:center; gap:2px; margin-right:4px}
 .zoom button{
   width:26px; height:26px; border:1px solid var(--gray-300); background:var(--white);
@@ -513,6 +547,160 @@ button{font-family:inherit; cursor:pointer}
 }
 @keyframes spin{to{transform:rotate(360deg)}}
 
+/* Itinerary tab ----------------------------------------------------------
+   The centrepiece: compact, editable day cards instead of one long form.
+   Each activity is a single row until clicked open - the same progressive
+   disclosure used everywhere else in this redesign. */
+.itin-intro{margin-bottom:18px}
+.itin-intro .group-title{margin-bottom:5px}
+.itin-empty{
+  padding:24px 18px; border:1px dashed var(--gray-300); border-radius:12px;
+  font-size:12.5px; color:var(--muted); text-align:center; line-height:1.6;
+}
+
+.itin-days{display:flex; flex-direction:column; gap:14px; margin-bottom:12px}
+.itin-day{border:1px solid var(--gray-200); border-radius:14px; background:var(--white); padding:14px 14px 12px}
+.itin-day-head{display:flex; align-items:center; gap:10px; margin-bottom:8px}
+.itin-day-num{
+  flex:none; font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:10.5px; font-weight:700;
+  letter-spacing:.03em; color:var(--white); background:var(--cta); border-radius:6px;
+  padding:4px 7px; cursor:pointer; transition:.15s;
+}
+.itin-day-num:hover{background:var(--cta-hover)}
+.itin-day-title{
+  flex:1; min-width:0; border:none; background:none; font-size:14.5px; font-weight:650;
+  color:var(--ink); padding:4px 2px; border-radius:6px; transition:.15s;
+}
+.itin-day-title:focus{outline:none; background:var(--gray-50)}
+.itin-day-when{
+  display:block; width:100%; border:none; background:none; font-size:12px; color:var(--muted);
+  padding:0 2px 8px; margin-top:-4px;
+}
+.itin-day-when:focus{outline:none; color:var(--ink)}
+
+.itin-items{display:flex; flex-direction:column; gap:6px; margin-bottom:8px}
+.itin-activity{border:1px solid var(--gray-200); border-radius:10px; background:var(--gray-50); transition:.15s}
+.itin-activity:hover{border-color:var(--gray-300)}
+.itin-activity.open{border-color:var(--accent); background:var(--white)}
+.itin-activity.dragging{opacity:.4}
+.itin-activity.drag-over{border-color:var(--accent-dark); box-shadow:0 0 0 2px var(--accent-tint)}
+
+.itin-activity-summary{
+  display:flex; align-items:center; gap:9px; padding:9px 10px; cursor:pointer;
+}
+.itin-activity-drag{flex:none; color:var(--gray-300); font-size:13px; cursor:grab; line-height:1}
+.itin-activity-time{
+  flex:none; font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:10px; color:var(--gray-500);
+  max-width:78px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.itin-activity-title{
+  flex:1; min-width:0; font-size:13px; font-weight:600; color:var(--ink);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.itin-activity-price{
+  flex:none; font-size:11.5px; color:var(--gray-700); font-variant-numeric:tabular-nums;
+}
+
+.itin-activity-detail{padding:2px 12px 14px; display:flex; flex-direction:column; gap:10px}
+.itin-field{display:flex; flex-direction:column; gap:5px}
+.itin-field span{font-size:11px; font-weight:500; color:var(--muted)}
+.itin-field input, .itin-field textarea{
+  font-family:var(--font); font-size:13px; color:var(--ink); width:100%;
+  padding:8px 10px; border:1px solid var(--gray-300); border-radius:8px; background:var(--white);
+  transition:.15s; resize:vertical;
+}
+.itin-field input:focus, .itin-field textarea:focus{
+  outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(65,191,143,.16);
+}
+.itin-photo-field{flex-direction:row; align-items:center; justify-content:space-between}
+
+.itin-add-activity, .itin-add-day{position:relative}
+.itin-add-btn, #btnAddDay{
+  width:100%; text-align:left; background:none; border:1px dashed var(--gray-300); border-radius:9px;
+  color:var(--gray-700); font-size:12.5px; font-weight:500; padding:9px 12px; transition:.15s;
+}
+.itin-add-btn:hover, #btnAddDay:hover{border-color:var(--accent); background:var(--accent-tint); color:var(--accent-dark)}
+#btnAddDay{text-align:center; margin-bottom:20px}
+
+/* Contextual ••• menus - shared by day cards and activity rows, and by the
+   add-activity control, so secondary actions stay out of the way until
+   asked for. */
+.itin-day-menu, .itin-activity-menu{position:relative; flex:none}
+.itin-menu-btn{
+  background:none; border:none; color:var(--gray-500); font-size:13px; font-weight:700;
+  width:24px; height:24px; border-radius:6px; line-height:1;
+}
+.itin-menu-btn:hover{background:var(--gray-100); color:var(--ink)}
+.itin-menu-pop{
+  position:absolute; right:0; top:calc(100% + 4px); min-width:170px; z-index:55;
+  background:var(--white); border:1px solid var(--gray-200); border-radius:11px;
+  box-shadow:0 14px 34px rgba(0,0,0,.16); padding:5px; overflow:hidden;
+}
+.itin-add-menu{left:0; right:auto}
+.itin-menu-pop button{
+  display:block; width:100%; text-align:left; background:none; border:none;
+  padding:8px 10px; border-radius:7px; font-size:12.5px; color:var(--ink); transition:.12s;
+}
+.itin-menu-pop button:hover{background:var(--accent-tint)}
+.itin-menu-pop button.danger{color:#c0392b}
+.itin-menu-pop button.danger:hover{background:#fdecea}
+
+.itin-raw-advanced{margin-top:22px}
+
+/* A brief highlight when a Build-panel click scrolls the preview to the
+   matching page or card, so the connection between the two is visible. */
+#doc .flash-highlight{outline:2px solid var(--accent); outline-offset:3px; border-radius:4px}
+
+/* Activity library search -------------------------------------------------- */
+.lib-search{
+  width:100%; margin-bottom:12px; font-family:var(--font); font-size:13px; color:var(--ink);
+  padding:9px 12px; border:1px solid var(--gray-300); border-radius:9px; background:var(--white);
+  transition:.15s;
+}
+.lib-search:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(65,191,143,.16)}
+
+/* Quotation summary -------------------------------------------------------- */
+.quo-summary{
+  margin:14px 0 16px; padding:4px 14px; border-radius:12px;
+  background:var(--gray-50); border:1px solid var(--gray-200);
+}
+.quo-summary .row{
+  display:flex; align-items:baseline; justify-content:space-between; gap:12px;
+  padding:10px 0; border-bottom:1px solid var(--gray-200);
+}
+.quo-summary .row:last-child{border-bottom:none}
+.quo-summary dt{font-size:12.5px; color:var(--muted)}
+.quo-summary dd{margin:0; font-size:12.5px; font-variant-numeric:tabular-nums; color:var(--ink)}
+.quo-summary .row--discount dd{color:var(--accent-dark); font-weight:600}
+.quo-summary .row--grand{border-top:1px solid var(--gray-300); border-bottom:none; margin-top:2px; padding-top:13px}
+.quo-summary .row--grand dt{font-weight:700; color:var(--black); font-size:13.5px}
+.quo-summary .row--grand dd{font-size:17px; font-weight:700; color:var(--black)}
+.quo-empty{padding:12px 0; font-size:12.5px; color:var(--muted)}
+.quo-inputs{margin-bottom:6px}
+.quo-advanced{margin-top:16px; border-top:1px solid var(--gray-200); padding-top:14px}
+.quo-advanced summary{
+  cursor:pointer; font-size:12.5px; font-weight:500; color:var(--gray-700); list-style:none;
+}
+.quo-advanced summary::-webkit-details-marker{display:none}
+.quo-advanced summary::before{content:"+ "; color:var(--accent-dark)}
+.quo-advanced[open] summary::before{content:"– "}
+.quo-margin-field{margin-top:14px}
+
+/* Document lists ------------------------------------------------------------ */
+.doc-list{display:flex; flex-direction:column; gap:7px; margin-top:12px; margin-bottom:10px}
+.doc-list-empty{font-size:12px; color:var(--gray-500); padding:2px 0 4px}
+.doc-list-row{display:flex; align-items:center; gap:8px}
+.doc-list-row input{
+  flex:1; font-family:var(--font); font-size:13px; color:var(--ink);
+  padding:9px 11px; border:1px solid var(--gray-300); border-radius:8px; background:var(--white); transition:.15s;
+}
+.doc-list-row input:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(65,191,143,.16)}
+.doc-list-del{
+  flex:none; width:28px; height:28px; border-radius:50%; border:none; background:var(--gray-100);
+  color:var(--gray-500); font-size:15px; line-height:1;
+}
+.doc-list-del:hover{background:#fdecea; color:#c0392b}
+
 /* Mobile tabs ----------------------------------------------------------- */
 /* Hidden by default (desktop shows both panels side by side already). Below
    the breakpoint the same two panels become two full-screen "screens", the
@@ -561,6 +749,10 @@ button{font-family:inherit; cursor:pointer}
   .preview-bar{padding:0 14px}
   .preview-bar-right{gap:6px}
   .preview-bar-left strong{font-size:12.5px}
+  .page-indicator{display:none}
+
+  .build-tabs{padding:8px 14px 0}
+  .trip-name{max-width:120px}
 }
 
 @media (max-width:520px){
@@ -568,4 +760,9 @@ button{font-family:inherit; cursor:pointer}
   .field input, #raw{font-size:15px}
   .btn-primary, .btn-outline, .btn-sm{min-height:40px}
   .paper-scroll{padding:16px}
+  .itin-activity-time{max-width:52px}
+  .trip-name{display:none}
+  .topbar{gap:8px; padding:0 14px}
+  .topbar .btn-outline.btn-sm{padding:7px 11px}
+  .btn-ghost{padding:7px 10px; font-size:11.5px}
 }

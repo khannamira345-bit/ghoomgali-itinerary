@@ -15,9 +15,24 @@
 <header class="topbar">
   <img class="topbar-logo" src="assets/logos/lockup-white.svg" alt="Ghoom Gali">
   <span class="topbar-divider"></span>
-  <span class="topbar-title">Itinerary Maker</span>
-  <span class="topbar-spacer"></span>
+  <span class="trip-name" id="tripName">Untitled trip</span>
   <span class="save-state" id="saveState">Saved</span>
+  <div class="history-btns">
+    <button class="btn-icon" id="btnUndo" title="Undo" disabled>&#8630;</button>
+    <button class="btn-icon" id="btnRedo" title="Redo" disabled>&#8631;</button>
+  </div>
+  <span class="topbar-spacer"></span>
+  <div class="dropdown">
+    <button class="btn-outline btn-sm" id="btnExportTop" aria-haspopup="true" aria-expanded="false">Export&nbsp;▾</button>
+    <div class="dropdown-menu" id="exportMenuTop" hidden>
+      <button data-export="pdf"><b>PDF</b><em>Print ready, page for page identical to the preview</em></button>
+      <button data-export="docx"><b>Word document</b><em>.docx — edit text in Word or Google&nbsp;Docs</em></button>
+      <button data-export="ggi"><b>Save project</b><em>.ggi — reopen here later to duplicate this trip</em></button>
+      <hr>
+      <button data-export="html"><b>Editable web page</b><em>.html — opens in any browser, edit and re-print</em></button>
+      <button data-export="open"><b>Open a project file…</b><em>Load a saved .ggi back into the maker</em></button>
+    </div>
+  </div>
   <button class="btn-ghost" id="btnReset" title="Clear everything and start a new itinerary">New itinerary</button>
 </header>
 
@@ -68,182 +83,128 @@
 
 <main class="split tab-build" id="mainSplit" hidden>
 
-  <!-- ─────────────  LEFT: INPUT  ───────────── -->
+  <!-- ─────────────  LEFT: BUILD  ───────────── -->
   <section class="panel panel-input">
+
+    <nav class="build-tabs" id="buildTabs">
+      <button type="button" class="build-tab active" data-section="overview">Overview</button>
+      <button type="button" class="build-tab" data-section="itinerary">Itinerary</button>
+      <button type="button" class="build-tab" data-section="activities">Activities</button>
+      <button type="button" class="build-tab" data-section="quotation">Quotation</button>
+      <button type="button" class="build-tab" data-section="document">Document</button>
+    </nav>
+
     <div class="panel-scroll">
 
-      <ol class="steps">
-        <li><span>1</span>Trip details</li>
-        <li><span>2</span>Paste the plan</li>
-        <li><span>3</span>Generate &amp; refine</li>
-      </ol>
+      <!-- ── Overview ── -->
+      <div class="build-section active" data-section="overview">
 
-      <div class="field-group">
-        <h2 class="group-title">Layout</h2>
-        <p class="group-hint">Two ways to present the same trip. Switch any time — nothing is lost.</p>
-        <div class="layout-picker" id="layoutPicker">
-          <button type="button" class="layout-opt active" data-layout="editorial">
-            <b>Editorial</b><em>Magazine feel. Cover, overview, day cards.</em>
-          </button>
-          <button type="button" class="layout-opt" data-layout="quotation">
-            <b>Quotation</b><em>Quote ID, details table, advisor, terms.</em>
-          </button>
+        <div class="field-group">
+          <h2 class="group-title">Layout</h2>
+          <p class="group-hint">Two ways to present the same trip. Switch any time — nothing is lost.</p>
+          <div class="layout-picker" id="layoutPicker">
+            <button type="button" class="layout-opt active" data-layout="editorial">
+              <b>Editorial</b><em>Magazine feel. Cover, overview, day cards.</em>
+            </button>
+            <button type="button" class="layout-opt" data-layout="quotation">
+              <b>Quotation</b><em>Quote ID, details table, advisor, terms.</em>
+            </button>
+          </div>
+          <input type="hidden" id="f-layout" value="editorial">
         </div>
-        <input type="hidden" id="f-layout" value="editorial">
-      </div>
 
-      <div class="field-group">
-        <h2 class="group-title">Activity library</h2>
-        <p class="group-hint">
-          An alternative to pasting text — import an Excel cost sheet, one worksheet per
-          destination, then click items into each day. Use it alone, or alongside pasted notes.
-        </p>
-
-        <div class="lib-toolbar">
-          <button type="button" class="btn-outline btn-sm" id="btnImportExcel">Import Excel</button>
-          <button type="button" class="btn-link" id="btnLibTemplate">Download template</button>
-          <span class="lib-status" id="libStatus"></span>
-        </div>
-        <input type="file" id="fileExcel" accept=".xlsx,.xls,.csv" hidden>
-
-        <div class="lib-dest-row" id="libDestRow" hidden></div>
-
-        <div class="lib-body" id="libBody" hidden>
-          <div class="lib-cat-tabs" id="libCatTabs">
-            <button type="button" class="lib-tab active" data-cat="hotel">Hotels</button>
-            <button type="button" class="lib-tab" data-cat="transfer">Transfers</button>
-            <button type="button" class="lib-tab" data-cat="activity">Activities</button>
-            <button type="button" class="lib-tab" data-cat="visa">Visa</button>
+        <div id="fgTripDetailsSlot"></div>
+        <div class="field-group" id="fgTripDetails">
+          <h2 class="group-title">Trip details</h2>
+          <p class="group-hint">These appear on the cover and overview pages. Leave any blank to hide it.</p>
+          <div class="grid-2">
+            <label class="field">
+              <span>Guest name</span>
+              <input type="text" id="f-guest" placeholder="Shivani Sharma">
+            </label>
+            <label class="field">
+              <span>Advisor contact</span>
+              <input type="text" id="f-advisorPhone" placeholder="+91 88000 25030">
+            </label>
+            <label class="field">
+              <span>Trip title</span>
+              <input type="text" id="f-title" placeholder="Vietnam">
+            </label>
+            <label class="field">
+              <span>Accent word <em>shown in gold</em></span>
+              <input type="text" id="f-titleAccent" placeholder="Escape.">
+            </label>
+            <label class="field field-wide">
+              <span>Subtitle</span>
+              <input type="text" id="f-subtitle" placeholder="Hanoi · Danang · Phu Quoc — an 8-day journey for 5">
+            </label>
+            <label class="field">
+              <span>Travel dates</span>
+              <input type="text" id="f-dates" placeholder="Nov 22–29">
+            </label>
+            <label class="field">
+              <span>Duration</span>
+              <input type="text" id="f-duration" placeholder="8D / 7N">
+            </label>
+            <label class="field">
+              <span>Travelers</span>
+              <input type="text" id="f-party" placeholder="5 Adults">
+            </label>
+            <label class="field">
+              <span>Children <em>optional</em></span>
+              <input type="text" id="f-children" placeholder="2 Children">
+            </label>
+            <label class="field">
+              <span>Destinations</span>
+              <input type="text" id="f-destinations" placeholder="3 Cities">
+            </label>
+            <label class="field">
+              <span>Prepared on</span>
+              <input type="text" id="f-preparedOn" placeholder="Nov 2026">
+            </label>
+            <label class="field">
+              <span>Prepared by</span>
+              <input type="text" id="f-preparedBy" placeholder="Ghoom Gali Travel">
+            </label>
           </div>
 
-          <div class="lib-day-target">
-            <span class="lib-day-label">Adding to</span>
-            <div class="lib-days" id="libDays"></div>
+          <div class="theme-picker">
+            <span class="theme-label">Colour accent</span>
+            <div class="swatches" id="themeSwatches">
+              <button type="button" class="swatch swatch--auto active" data-theme="">Auto</button>
+              <button type="button" class="swatch swatch--mint" data-theme="mint" title="Mint"></button>
+              <button type="button" class="swatch swatch--chai" data-theme="chai" title="Chai"></button>
+              <button type="button" class="swatch swatch--lantern" data-theme="lantern" title="Lantern"></button>
+            </div>
           </div>
-
-          <div class="lib-day-plan" id="libDayPlan"></div>
-
-          <div class="lib-items" id="libItems"></div>
+          <p class="group-hint theme-hint">Auto gives each trip its own accent from the brand palette. Pick one to lock it.</p>
+          <input type="hidden" id="f-theme" value="">
         </div>
-
-        <div class="lib-empty" id="libEmpty">Import an Excel cost sheet to build your library — or click "Download template" to see the exact format.</div>
       </div>
 
-      <div id="fgTripDetailsSlot"></div>
-      <div class="field-group" id="fgTripDetails">
-        <h2 class="group-title">Trip details</h2>
-        <p class="group-hint">These appear on the cover and overview pages. Leave any blank to hide it.</p>
-        <div class="grid-2">
-          <label class="field">
-            <span>Guest name</span>
-            <input type="text" id="f-guest" placeholder="Shivani Sharma">
-          </label>
-          <label class="field">
-            <span>Advisor contact</span>
-            <input type="text" id="f-advisorPhone" placeholder="+91 88000 25030">
-          </label>
-          <label class="field">
-            <span>Trip title</span>
-            <input type="text" id="f-title" placeholder="Vietnam">
-          </label>
-          <label class="field">
-            <span>Accent word <em>shown in gold</em></span>
-            <input type="text" id="f-titleAccent" placeholder="Escape.">
-          </label>
-          <label class="field field-wide">
-            <span>Subtitle</span>
-            <input type="text" id="f-subtitle" placeholder="Hanoi · Danang · Phu Quoc — an 8-day journey for 5">
-          </label>
-          <label class="field">
-            <span>Travel dates</span>
-            <input type="text" id="f-dates" placeholder="Nov 22–29">
-          </label>
-          <label class="field">
-            <span>Duration</span>
-            <input type="text" id="f-duration" placeholder="8D / 7N">
-          </label>
-          <label class="field">
-            <span>Travelers</span>
-            <input type="text" id="f-party" placeholder="5 Adults">
-          </label>
-          <label class="field">
-            <span>Children <em>optional</em></span>
-            <input type="text" id="f-children" placeholder="2 Children">
-          </label>
-          <label class="field">
-            <span>Destinations</span>
-            <input type="text" id="f-destinations" placeholder="3 Cities">
-          </label>
-          <label class="field">
-            <span>Prepared on</span>
-            <input type="text" id="f-preparedOn" placeholder="Nov 2026">
-          </label>
-          <label class="field">
-            <span>Prepared by</span>
-            <input type="text" id="f-preparedBy" placeholder="Ghoom Gali Travel">
-          </label>
-          <label class="field field-wide">
-            <span>PDF / file name <em>optional</em></span>
-            <input type="text" id="f-fileName" placeholder="Leave blank to name it from the trip title">
-          </label>
+      <!-- ── Itinerary ── -->
+      <div class="build-section" data-section="itinerary">
+        <div class="itin-intro">
+          <h2 class="group-title">Itinerary</h2>
+          <p class="group-hint">Here's your trip — click a day to jump to it in the preview, or an activity to edit it.</p>
         </div>
 
-        <div class="theme-picker">
-          <span class="theme-label">Colour accent</span>
-          <div class="swatches" id="themeSwatches">
-            <button type="button" class="swatch swatch--auto active" data-theme="">Auto</button>
-            <button type="button" class="swatch swatch--mint" data-theme="mint" title="Mint"></button>
-            <button type="button" class="swatch swatch--chai" data-theme="chai" title="Chai"></button>
-            <button type="button" class="swatch swatch--lantern" data-theme="lantern" title="Lantern"></button>
-          </div>
-        </div>
-        <p class="group-hint theme-hint">Auto gives each trip its own accent from the brand palette. Pick one to lock it.</p>
-        <input type="hidden" id="f-theme" value="">
-      </div>
+        <div class="itin-days" id="itinDays"></div>
+        <button type="button" class="itin-add-day" id="btnAddDay">+ Add day</button>
 
-      <div class="field-group">
-        <h2 class="group-title">Costing</h2>
-        <p class="group-hint">
-          Check the numbers here before you download. Margin stays on this screen —
-          it is not printed on the traveller's PDF unless you tick the box below.
-        </p>
-        <div class="grid-3">
-          <label class="field">
-            <span>Margin <em>₹</em></span>
-            <input type="number" id="c-margin" min="0" step="500" placeholder="45000">
-          </label>
-          <label class="field">
-            <span>GST <em>%</em></span>
-            <input type="number" id="c-gst" min="0" max="100" step="0.5" placeholder="5">
-          </label>
-          <label class="field">
-            <span>TCS <em>%</em></span>
-            <input type="number" id="c-tcs" min="0" max="100" step="0.5" placeholder="2">
-          </label>
-          <label class="field field-wide">
-            <span>Discount <em>₹ — subtracted from the total</em></span>
-            <input type="number" id="c-discount" min="0" step="500" placeholder="0">
-          </label>
-        </div>
-
-        <dl class="cost-review" id="costReview">
-          <div class="cost-empty">Generate an itinerary to see the costing.</div>
-        </dl>
-
-        <label class="check">
-          <input type="checkbox" id="c-showMargin">
-          <span>Show margin and base cost on the PDF <em>internal copy</em></span>
-        </label>
-      </div>
-
-      <div id="fgPastePlanSlot"></div>
-      <div class="field-group" id="fgPastePlan">
-        <h2 class="group-title">Paste the plan</h2>
-        <p class="group-hint">
-          Paste raw notes exactly as you have them — WhatsApp messages, an email, rough bullets.
-          Start each day with <b>Day 1</b>, <b>Day 2</b> and so on; everything under it becomes that day.
-        </p>
-        <textarea id="raw" spellcheck="false" placeholder="Day 1 — Arrive Delhi
+        <details class="tips itin-raw-advanced">
+          <summary>Advanced — edit the raw plan</summary>
+          <p class="group-hint" style="margin-top:12px">
+            Re-paste the whole plan to regenerate the trip from scratch. Existing photos are kept where the title matches.
+          </p>
+          <div id="fgPastePlanSlot"></div>
+          <div class="field-group" id="fgPastePlan">
+            <h2 class="group-title">Paste the plan</h2>
+            <p class="group-hint">
+              Paste raw notes exactly as you have them — WhatsApp messages, an email, rough bullets.
+              Start each day with <b>Day 1</b>, <b>Day 2</b> and so on; everything under it becomes that day.
+            </p>
+            <textarea id="raw" spellcheck="false" placeholder="Day 1 — Arrive Delhi
 09:40 Flight 6E-2043 Mumbai to Delhi
 Pickup from T3 and transfer to hotel
 Check in at The Claridges, Lutyens Delhi
@@ -254,37 +215,162 @@ Breakfast at hotel
 Drive to Shimla, about 8 hours by road
 Check in at Wildflower Hall
 ..."></textarea>
-        <div class="raw-actions">
-          <button class="btn-link" id="btnSample">Load sample text</button>
-          <span class="counter" id="rawCount">0 lines</span>
+            <div class="raw-actions">
+              <button class="btn-link" id="btnSample">Load sample text</button>
+              <span class="counter" id="rawCount">0 lines</span>
+            </div>
+
+            <button class="btn-primary" id="btnGenerate">Generate Beautiful Branded Itinerary</button>
+
+            <details class="tips">
+              <summary>How to write the plan</summary>
+              <ul>
+                <li><code>Day 1 | Nov 22 · Hanoi | Hanoi</code> — day number, then the date line, then the title</li>
+                <li><code>[On arrival · coordinated with flight]</code> — square brackets become the small label above a card</li>
+                <li><code>HAN Airport Pick-Up | 2100</code> — a title, then its cost after a pipe</li>
+                <li>The next plain line becomes the description</li>
+                <li><code>- Private transfer vehicle</code> — dashes become the bullet list</li>
+                <li><code>= INR 2,318 × 5 adults</code> — an equals sign makes the small grey cost note</li>
+              </ul>
+              <p><b>Sections:</b> start a line with <code>Hotels</code>, <code>Pricing</code>, <code>Inclusions</code>,
+                 <code>Exclusions</code> or <code>Notes</code> and list beneath it.</p>
+              <p><b>Hotels:</b> <code>Hanoi | Sky Lark Hotel | Nov 22 – 24 | 2 nights | 21533</code>, then dashes for room types.</p>
+              <p><b>Pricing:</b> <code>Margin | 45000</code>, <code>GST | 5%</code>, <code>TCS | 2%</code>.
+                 Day totals, base cost, subtotal, GST/TCS and the grand total are all worked out for you,
+                 with tax shown as its own section.</p>
+              <p><b>Children:</b> mention <code>2 children</code> or <code>2 kids</code> anywhere in the
+                 opening lines and it appears as its own stat, and counts toward cost per person.</p>
+              <p><b>Terms:</b> start a line with <code>Terms</code> or <code>Cancellation Policy</code> and list beneath it.</p>
+              <p><b>Trip summary:</b> every entry is sorted into Morning, Afternoon or Evening automatically —
+                 from words like "evening" or a time like <code>15:30</code>. On the Trip summary page,
+                 click any entry to move it to a different column.</p>
+              <p>Every card gets a photo slot. Click it, or drag an image straight onto it.</p>
+            </details>
+          </div>
+        </details>
+      </div>
+
+      <!-- ── Activities ── -->
+      <div class="build-section" data-section="activities">
+        <div class="field-group">
+          <h2 class="group-title">Activity library</h2>
+          <p class="group-hint">
+            An alternative to pasting text — import an Excel cost sheet, one worksheet per
+            destination, then click items into each day. Use it alone, or alongside pasted notes.
+          </p>
+
+          <div class="lib-toolbar">
+            <button type="button" class="btn-outline btn-sm" id="btnImportExcel">Import Excel</button>
+            <button type="button" class="btn-link" id="btnLibTemplate">Download template</button>
+            <span class="lib-status" id="libStatus"></span>
+          </div>
+          <input type="file" id="fileExcel" accept=".xlsx,.xls,.csv" hidden>
+
+          <div class="lib-dest-row" id="libDestRow" hidden></div>
+
+          <div class="lib-body" id="libBody" hidden>
+            <div class="lib-cat-tabs" id="libCatTabs">
+              <button type="button" class="lib-tab active" data-cat="hotel">Hotels</button>
+              <button type="button" class="lib-tab" data-cat="transfer">Transfers</button>
+              <button type="button" class="lib-tab" data-cat="activity">Activities</button>
+              <button type="button" class="lib-tab" data-cat="visa">Visa</button>
+            </div>
+
+            <input type="text" class="lib-search" id="libSearch" placeholder="Search this destination…">
+
+            <div class="lib-day-target">
+              <span class="lib-day-label">Adding to</span>
+              <div class="lib-days" id="libDays"></div>
+            </div>
+
+            <div class="lib-day-plan" id="libDayPlan"></div>
+
+            <div class="lib-items" id="libItems"></div>
+          </div>
+
+          <div class="lib-empty" id="libEmpty">Import an Excel cost sheet to build your library — or click "Download template" to see the exact format.</div>
+        </div>
+      </div>
+
+      <!-- ── Quotation ── -->
+      <div class="build-section" data-section="quotation">
+        <div class="field-group">
+          <h2 class="group-title">Quotation</h2>
+          <p class="group-hint">
+            The client sees the total below on their PDF. Margin stays on this screen —
+            it only prints if you tick the box inside Advanced.
+          </p>
+
+          <dl class="quo-summary" id="quoSummary">
+            <div class="quo-empty">Generate an itinerary to see the costing.</div>
+          </dl>
+
+          <div class="grid-3 quo-inputs">
+            <label class="field">
+              <span>GST <em>%</em></span>
+              <input type="number" id="c-gst" min="0" max="100" step="0.5" placeholder="5">
+            </label>
+            <label class="field">
+              <span>TCS <em>%</em></span>
+              <input type="number" id="c-tcs" min="0" max="100" step="0.5" placeholder="2">
+            </label>
+            <label class="field">
+              <span>Discount <em>₹</em></span>
+              <input type="number" id="c-discount" min="0" step="500" placeholder="0">
+            </label>
+          </div>
+
+          <details class="quo-advanced">
+            <summary>Advanced — margin &amp; internal breakdown</summary>
+
+            <label class="field quo-margin-field">
+              <span>Margin <em>₹ — internal only, unless shown below</em></span>
+              <input type="number" id="c-margin" min="0" step="500" placeholder="45000">
+            </label>
+
+            <dl class="cost-review" id="costReview">
+              <div class="cost-empty">Generate an itinerary to see the full breakdown.</div>
+            </dl>
+
+            <label class="check">
+              <input type="checkbox" id="c-showMargin">
+              <span>Show margin and base cost on the PDF <em>internal copy</em></span>
+            </label>
+          </details>
+        </div>
+      </div>
+
+      <!-- ── Document ── -->
+      <div class="build-section" data-section="document">
+        <div class="field-group">
+          <h2 class="group-title">Inclusions</h2>
+          <p class="group-hint">What this package covers. Printed on its own page in the PDF.</p>
+          <div class="doc-list" id="docInclusions"></div>
+          <button type="button" class="btn-outline btn-sm doc-list-add" data-list="inclusions">+ Add inclusion</button>
         </div>
 
-        <button class="btn-primary" id="btnGenerate">Generate Beautiful Branded Itinerary</button>
+        <div class="field-group">
+          <h2 class="group-title">Exclusions</h2>
+          <p class="group-hint">What this package does not cover.</p>
+          <div class="doc-list" id="docExclusions"></div>
+          <button type="button" class="btn-outline btn-sm doc-list-add" data-list="exclusions">+ Add exclusion</button>
+        </div>
 
-        <details class="tips">
-          <summary>How to write the plan</summary>
-          <ul>
-            <li><code>Day 1 | Nov 22 · Hanoi | Hanoi</code> — day number, then the date line, then the title</li>
-            <li><code>[On arrival · coordinated with flight]</code> — square brackets become the small label above a card</li>
-            <li><code>HAN Airport Pick-Up | 2100</code> — a title, then its cost after a pipe</li>
-            <li>The next plain line becomes the description</li>
-            <li><code>- Private transfer vehicle</code> — dashes become the bullet list</li>
-            <li><code>= INR 2,318 × 5 adults</code> — an equals sign makes the small grey cost note</li>
-          </ul>
-          <p><b>Sections:</b> start a line with <code>Hotels</code>, <code>Pricing</code>, <code>Inclusions</code>,
-             <code>Exclusions</code> or <code>Notes</code> and list beneath it.</p>
-          <p><b>Hotels:</b> <code>Hanoi | Sky Lark Hotel | Nov 22 – 24 | 2 nights | 21533</code>, then dashes for room types.</p>
-          <p><b>Pricing:</b> <code>Margin | 45000</code>, <code>GST | 5%</code>, <code>TCS | 2%</code>.
-             Day totals, base cost, subtotal, GST/TCS and the grand total are all worked out for you,
-             with tax shown as its own section.</p>
-          <p><b>Children:</b> mention <code>2 children</code> or <code>2 kids</code> anywhere in the
-             opening lines and it appears as its own stat, and counts toward cost per person.</p>
-          <p><b>Terms:</b> start a line with <code>Terms</code> or <code>Cancellation Policy</code> and list beneath it.</p>
-          <p><b>Trip summary:</b> every entry is sorted into Morning, Afternoon or Evening automatically —
-             from words like "evening" or a time like <code>15:30</code>. On the Trip summary page,
-             click any entry to move it to a different column.</p>
-          <p>Every card gets a photo slot. Click it, or drag an image straight onto it.</p>
-        </details>
+        <div class="field-group">
+          <h2 class="group-title">Terms &amp; conditions</h2>
+          <p class="group-hint">Cancellation policy and anything else — numbered automatically on the PDF.</p>
+          <div class="doc-list" id="docTerms"></div>
+          <button type="button" class="btn-outline btn-sm doc-list-add" data-list="terms">+ Add term</button>
+        </div>
+
+        <div class="field-group">
+          <h2 class="group-title">Document settings</h2>
+          <p class="group-hint">Controls the exported file — not shown on any page.</p>
+          <label class="field field-wide">
+            <span>PDF / file name <em>optional</em></span>
+            <input type="text" id="f-fileName" placeholder="Leave blank to name it from the trip title">
+          </label>
+        </div>
       </div>
 
     </div>
@@ -299,22 +385,13 @@ Check in at Wildflower Hall
         <span class="preview-hint" id="previewHint">Click any text to edit it</span>
       </div>
       <div class="preview-bar-right">
+        <span class="page-indicator" id="pageIndicator"></span>
         <div class="zoom">
           <button id="zoomOut" title="Zoom out">–</button>
-          <span id="zoomLabel">Fit</span>
+          <button id="zoomLabel" title="Reset to fit width">Fit</button>
           <button id="zoomIn" title="Zoom in">+</button>
         </div>
-        <button class="btn-primary btn-sm" id="btnPdf">Download PDF</button>
-        <div class="dropdown">
-          <button class="btn-outline btn-sm" id="btnExport" aria-haspopup="true" aria-expanded="false">Editable&nbsp;▾</button>
-          <div class="dropdown-menu" id="exportMenu" hidden>
-            <button data-export="docx"><b>Word document</b><em>.docx — edit text in Word or Google&nbsp;Docs</em></button>
-            <button data-export="html"><b>Editable web page</b><em>.html — opens in any browser, edit and re-print</em></button>
-            <button data-export="ggi"><b>Project file</b><em>.ggi — reopen here later to duplicate this trip</em></button>
-            <hr>
-            <button data-export="open"><b>Open a project file…</b><em>Load a saved .ggi back into the maker</em></button>
-          </div>
-        </div>
+        <button class="btn-icon" id="btnFullscreen" title="Fullscreen preview">⤢</button>
       </div>
     </div>
 

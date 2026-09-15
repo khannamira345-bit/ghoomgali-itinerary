@@ -254,6 +254,7 @@
       var tone = tones[i];
 
       var head = el('div', 'day-head');
+      head.dataset.dayHead = base;
       head.appendChild(el('div', 'day-n day-n--' + tone, pad2(d.n || i + 1)));
       var txt = el('div');
       txt.appendChild(edit('div', 'day-when', d.when, base + '.when', 'Date · place'));
