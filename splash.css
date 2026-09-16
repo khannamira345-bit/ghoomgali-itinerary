@@ -1,0 +1,169 @@
+/* Splash — a short brand moment that hands off to the app.
+
+   The G draws itself, the plane loops round it on a lantern trail and parks,
+   "Ghoom Gali" rises letter by letter, then the whole lockup flies into the
+   topbar logo while the Abyss backdrop clears, so the splash ends *as* the
+   app's first screen rather than cutting to it.
+
+   Timing follows published motion systems rather than taste:
+   - Android splash guidance: logo motion within ~1000ms, start delay under
+     166ms, dismiss as soon as the app is ready, always skippable.
+   - Primer (GitHub) tokens: enter = cubic-bezier(.3,.8,.6,1), move =
+     cubic-bezier(.6,0,.2,1), exit = cubic-bezier(.7,.1,.75,.9); UI motion
+     never longer than 500ms per movement.
+   - Material 3 tokens for the hand-off: emphasized-decelerate
+     cubic-bezier(.05,.7,.1,1) for letters, standard cubic-bezier(.2,0,0,1)
+     for the large move into the topbar.
+   - web.dev on reduced motion: replace movement with a fade, don't just cut.
+   Artwork is lockup-abyss.svg, inlined in index.html (same 900x450 viewBox,
+   so the hand-off lands pixel-for-pixel on .topbar-logo). splash.js drives
+   the dismissal. */
+
+.splash{
+  --s-enter:cubic-bezier(.3,.8,.6,1);
+  --s-move:cubic-bezier(.6,0,.2,1);
+  --s-emph:cubic-bezier(.05,.7,.1,1);
+  --s-standard:cubic-bezier(.2,0,0,1);
+
+  position:fixed; inset:0; z-index:1000;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  padding:16px; cursor:pointer;
+}
+/* The backdrop is its own layer so it can iris shut on the topbar logo while
+   the artwork travels there. */
+.splash::before{
+  content:''; position:absolute; inset:0; background:#0C2027;
+  clip-path:circle(var(--r,150vmax) at var(--cx,50%) var(--cy,50%));
+}
+
+.splash-art{
+  position:relative; display:block;
+  width:min(560px,88vw); height:auto; overflow:visible;
+  transform-origin:0 0;
+}
+
+/* Beat 1 (80–700ms) — the G: outline draws, fill floods in, outline lets go. */
+.splash-g{
+  fill:#41BF8F; fill-opacity:0;
+  stroke:#41BF8F; stroke-width:2.5; stroke-linejoin:round;
+  stroke-dasharray:1 1; stroke-dashoffset:1;
+  animation:
+    splash-draw .6s var(--s-move) .08s forwards,
+    splash-fill .3s var(--s-enter) .45s forwards;
+}
+@keyframes splash-draw{to{stroke-dashoffset:0}}
+@keyframes splash-fill{to{fill-opacity:1; stroke-opacity:0}}
+
+/* Beat 2 (180–980ms) — the plane's loop. The trail is a short dash whose head
+   sits under the plane's tail (same duration and curve as splash-fly), and it
+   slips in behind the plane once it parks. */
+.splash-trail{
+  fill:none; stroke:#E7C547; stroke-width:3; stroke-linecap:round;
+  stroke-dasharray:.28 2; stroke-dashoffset:.28; opacity:.9;
+  animation:
+    splash-trail .8s var(--s-move) .18s forwards,
+    splash-trail-out .3s var(--s-enter) .95s forwards;
+}
+@keyframes splash-trail{to{stroke-dashoffset:-.72}}
+@keyframes splash-trail-out{to{stroke-dashoffset:-1.3; opacity:0}}
+
+.splash-plane{
+  fill:#C4855A; opacity:0;
+  transform-box:view-box; transform-origin:218px 94px;
+  animation:
+    splash-fly .8s linear .18s both,
+    splash-show .12s linear .18s forwards;
+}
+/* Follow-through: once parked, the plane drifts a hair along its heading and
+   settles, so it lands rather than stops. */
+.splash-plane-body{
+  transform-box:view-box; transform-origin:218px 94px;
+  animation:splash-settle .45s var(--s-move) .95s both;
+}
+@keyframes splash-show{to{opacity:1}}
+@keyframes splash-settle{
+  0%, 100%{transform:none}
+  45%{transform:translate(5px,-1.5px)}
+}
+@keyframes splash-fly{
+  0.0%{transform:translate(112.0px,301.0px) rotate(145.8deg)}
+  21.2%{transform:translate(71.7px,310.5px) rotate(155.6deg)}
+  27.5%{transform:translate(30.3px,313.7px) rotate(163.8deg)}
+  31.5%{transform:translate(-10.6px,311.1px) rotate(171.8deg)}
+  34.4%{transform:translate(-51.4px,302.4px) rotate(181.1deg)}
+  36.8%{transform:translate(-89.3px,287.0px) rotate(191.9deg)}
+  38.8%{transform:translate(-123.4px,264.0px) rotate(204.7deg)}
+  40.7%{transform:translate(-151.1px,233.6px) rotate(218.9deg)}
+  42.5%{transform:translate(-170.6px,197.5px) rotate(232.6deg)}
+  44.4%{transform:translate(-181.6px,157.4px) rotate(245.5deg)}
+  46.6%{transform:translate(-182.3px,116.2px) rotate(261.0deg)}
+  49.2%{transform:translate(-171.6px,76.5px) rotate(277.5deg)}
+  52.4%{transform:translate(-150.2px,41.8px) rotate(294.4deg)}
+  56.5%{transform:translate(-119.1px,14.7px) rotate(311.9deg)}
+  62.2%{transform:translate(-81.0px,-1.8px) rotate(329.5deg)}
+  71.0%{transform:translate(-40.3px,-6.3px) rotate(345.9deg)}
+  100.0%{transform:translate(0.0px,0.0px) rotate(360.0deg)}
+}
+
+/* Beat 3 (600–1250ms) — Ghoom, then Gali, each letter a beat after the last. */
+.splash-word path{
+  fill:#EEE9E3; opacity:0;
+  transform-box:fill-box; transform-origin:50% 100%;
+  animation:splash-rise .4s var(--s-emph) calc(.6s + var(--i) * 30ms) forwards;
+}
+@keyframes splash-rise{
+  from{opacity:0; transform:translateY(32px)}
+  to{opacity:1; transform:none}
+}
+
+.splash-tag{
+  position:relative; margin:clamp(-8px,-1vh,0px) 0 0;
+  color:#EEE9E3; opacity:0;
+  font-family:'Newsreader',Georgia,serif; font-style:italic; font-weight:300;
+  font-size:clamp(17px,2.4vw,22px); letter-spacing:.01em;
+  animation:splash-tag .3s var(--s-enter) .95s forwards;
+}
+@keyframes splash-tag{
+  from{opacity:0; transform:translateY(6px)}
+  to{opacity:.72; transform:none}
+}
+
+/* Hand-off: splash.js sets --to (the FLIP transform onto .topbar-logo) and
+   adds .is-handoff. The lockup takes on the topbar logo's Abyss colour on the
+   way, the tagline leaves first, and the backdrop irises shut onto the same
+   point (a dark-over-white cross-fade would wash the app grey mid-way), so
+   the last thing on screen is the real logo. */
+.splash.is-handoff{pointer-events:none}
+.splash.is-handoff::before{
+  clip-path:circle(0px at var(--cx) var(--cy));
+  transition:clip-path .45s var(--s-standard);
+}
+.splash.is-handoff .splash-tag{
+  animation:none; opacity:0; transition:opacity .15s var(--s-enter);
+}
+.splash.is-handoff .splash-art{
+  transform:var(--to);
+  transition:transform .5s var(--s-standard);
+}
+.splash.is-handoff .splash-g,
+.splash.is-handoff .splash-plane,
+.splash.is-handoff .splash-word path{
+  fill:#0C2027; transition:fill .2s var(--s-standard) .25s;
+}
+
+/* No topbar logo to land on: a plain exit, accelerating away (Primer exit). */
+.splash.is-leaving{
+  opacity:0; pointer-events:none;
+  transition:opacity .3s cubic-bezier(.7,.1,.75,.9);
+}
+
+/* Reduced motion: no drawing, flying or rising — the finished lockup simply
+   appears and the splash cross-fades away. */
+@media (prefers-reduced-motion:reduce){
+  .splash-g, .splash-trail, .splash-plane, .splash-plane-body,
+  .splash-word path, .splash-tag{animation:none}
+  .splash-g{fill-opacity:1; stroke:none}
+  .splash-trail{display:none}
+  .splash-plane, .splash-word path{opacity:1}
+  .splash-tag{opacity:.72}
+}
