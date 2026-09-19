@@ -703,9 +703,18 @@
       if (kind === 'pdf') {
         var pages = docEl.querySelectorAll('.page').length;
         overlay(true, 'Building your PDF', 'Preparing ' + pages + ' pages…');
-        await window.GGExport.pdf(docEl, state.model, function (i, n) {
-          $('overlayMsg').textContent = 'Rendering page ' + i + ' of ' + n + '…';
-        });
+        // On a phone the Build tab hides the preview with visibility:hidden,
+        // which html2canvas honours - every page came out blank. Show it for
+        // the capture; the overlay covers the screen meanwhile.
+        var previewWasHidden = panelPreviewEl && panelPreviewEl.classList.contains('mobile-panel-hidden');
+        if (previewWasHidden) panelPreviewEl.classList.remove('mobile-panel-hidden');
+        try {
+          await window.GGExport.pdf(docEl, state.model, function (i, n) {
+            $('overlayMsg').textContent = 'Rendering page ' + i + ' of ' + n + '…';
+          });
+        } finally {
+          if (previewWasHidden) panelPreviewEl.classList.add('mobile-panel-hidden');
+        }
         overlay(false);
         toast('PDF saved to Downloads — ' + pages + ' pages, ready to send to the customer.');
       } else if (kind === 'docx') {
