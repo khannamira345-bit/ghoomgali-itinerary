@@ -60,7 +60,6 @@
       <button data-export="pdf"><b>PDF for the customer</b><em>Print ready, page for page identical to the preview</em></button>
       <button data-export="docx"><b>Word document</b><em>.docx — edit text in Word or Google&nbsp;Docs</em></button>
       <hr>
-      <button data-export="ggi"><b>Itinerary file</b><em>.ggi — a backup, or to open on another computer</em></button>
       <button data-export="html"><b>Editable web page</b><em>.html — opens in any browser, edit and re-print</em></button>
     </div>
   </div>
@@ -69,7 +68,7 @@
 <!-- ─────────────  ITINERARIES (home)  ─────────────
      Every itinerary the agency has prepared, newest first. Saved on this
      computer; open one to keep working, duplicate it for a similar
-     customer, or download it as a file. -->
+     customer, or download its PDF. -->
 <div class="home" id="home">
   <header class="home-head">
     <div>
@@ -78,7 +77,6 @@
     </div>
     <div class="home-actions">
       <button type="button" class="btn-quiet" id="btnAgency">Agency settings</button>
-      <button type="button" class="btn-quiet" id="btnOpenFile">Open a file…</button>
       <button type="button" class="btn-primary btn-sm" id="btnNewTrip">New itinerary</button>
     </div>
   </header>
@@ -92,28 +90,57 @@
   <div class="home-empty" id="homeEmpty" hidden>
     <img src="assets/logos/mark-abyss.svg" alt="">
     <h2>No itineraries yet</h2>
-    <p>Start one for your first customer. Paste their WhatsApp chat and the itinerary is laid out for you.</p>
+    <p>Start one for your first customer. Paste their plan or upload its PDF and the itinerary is laid out for you, or build it day by day.</p>
     <button type="button" class="btn-primary btn-sm" id="btnNewTripEmpty">New itinerary</button>
   </div>
 </div>
 
 <!-- ─────────────  NEW ITINERARY (setup)  ─────────────
-     One full-window step: customer and trip basics on the left, the pasted
-     chat on the right. The fields are the workspace's own inputs, moved in
-     here and moved back once the itinerary is created - one set of inputs,
-     no separate state to keep in sync. -->
-<div class="setup" id="onboarding" hidden>
-  <section class="setup-col setup-col--details">
-    <p class="setup-eyebrow">New itinerary</p>
-    <h1>Who is this trip for?</h1>
-    <p class="setup-lede">The customer and the basics of their trip. Your advisor details come from Agency settings, and everything can be changed later.</p>
-    <div class="setup-slot" id="onboardSlot1"><!-- Trip details field-group moves here --></div>
+     Two steps, one page each: who the trip is for, then how to build it -
+     from pasted text or a PDF, or day by day. The fields are the workspace's
+     own inputs, moved in here and moved back once the itinerary is created -
+     one set of inputs, no separate state to keep in sync. -->
+<div class="setup" id="onboarding" data-step="1" hidden>
+
+  <section class="setup-step" data-step-panel="1">
+    <div class="setup-inner">
+      <p class="setup-eyebrow">New itinerary · Step 1 of 2</p>
+      <h1>Who is this trip for?</h1>
+      <p class="setup-lede">The customer and the basics of their trip. Your advisor details come from Agency settings, and everything can be changed later.</p>
+      <div class="setup-slot" id="onboardSlot1"><!-- Trip details field-group moves here --></div>
+      <button type="button" class="btn-primary setup-next" id="btnSetupNext">Continue</button>
+    </div>
   </section>
-  <section class="setup-col setup-col--paste">
-    <h2>Paste the chat</h2>
-    <p class="setup-lede">Copy the plan agreed with the customer out of WhatsApp or email and paste it here as it is. Start each day with <b>Day&nbsp;1</b>, <b>Day&nbsp;2</b> and so on.</p>
-    <div class="setup-slot" id="onboardSlot2"><!-- Paste the chat field-group moves here --></div>
-    <button type="button" class="btn-link setup-blank" id="btnSetupBlank">No chat yet? Start with a blank itinerary</button>
+
+  <section class="setup-step" data-step-panel="2">
+    <div class="setup-inner setup-inner--wide">
+      <button type="button" class="setup-back" data-goto-step="1"><span aria-hidden="true">&#8249;</span> Trip details</button>
+      <p class="setup-eyebrow">New itinerary · Step 2 of 2</p>
+      <h1>How do you want to build it?</h1>
+      <p class="setup-lede" id="setupSummary"></p>
+      <div class="setup-choices">
+        <button type="button" class="setup-choice" id="btnChooseText">
+          <span class="setup-choice-n">A</span>
+          <b>Paste text or upload a PDF</b>
+          <em>Paste the plan from WhatsApp or email, or upload its PDF. The days are laid out for you to check and edit.</em>
+        </button>
+        <button type="button" class="setup-choice" id="btnChooseManual">
+          <span class="setup-choice-n">B</span>
+          <b>Build it day by day</b>
+          <em id="manualHint">The days are created from the trip's duration. Fill each one from the cost sheet or with your own items.</em>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <section class="setup-step" data-step-panel="paste">
+    <div class="setup-inner setup-inner--wide">
+      <button type="button" class="setup-back" data-goto-step="2"><span aria-hidden="true">&#8249;</span> How to build it</button>
+      <p class="setup-eyebrow">New itinerary · Step 2 of 2</p>
+      <h1>Paste the plan</h1>
+      <p class="setup-lede">Paste the plan agreed with the customer as it is, or upload its PDF. Start each day with <b>Day&nbsp;1</b>, <b>Day&nbsp;2</b> and so on.</p>
+      <div class="setup-slot" id="onboardSlot2"><!-- Paste the chat field-group moves here --></div>
+    </div>
   </section>
 </div>
 
@@ -168,9 +195,17 @@ Drive to Shimla, about 8 hours by road
 Check in at Wildflower Hall
 ..."></textarea>
         <div class="raw-actions">
-          <button class="btn-link" id="btnSample">Try a sample chat</button>
+          <div class="raw-tools">
+            <button type="button" class="btn-outline btn-sm" id="btnUploadPdf">Upload PDF</button>
+            <select class="sample-select" id="sampleSelect" aria-label="Try a sample"></select>
+          </div>
           <span class="counter" id="rawCount">0 lines</span>
         </div>
+        <div class="sample-actions">
+          <button type="button" class="btn-link" id="btnSaveSample">Save this text as a sample</button>
+          <button type="button" class="btn-link lib-remove" id="btnDeleteSample" hidden>Delete this saved sample</button>
+        </div>
+        <input type="file" id="filePdf" accept="application/pdf,.pdf" hidden>
 
         <button class="btn-primary" id="btnGenerate">Create itinerary</button>
 
@@ -190,12 +225,18 @@ Check in at Wildflower Hall
           <p><b>Pricing:</b> <code>Margin | 45000</code>, <code>GST | 5%</code>, <code>TCS | 2%</code>.
              Day totals, base cost, subtotal, GST/TCS and the grand total are all worked out for you,
              with tax shown as its own section.</p>
+          <p><b>A package price:</b> <code>Total | 72,000 incl. GST</code> sets the price the customer pays,
+             and "incl. GST" anywhere stops GST being added on top.</p>
+          <p><b>Flights:</b> <code>Flight 6E-2043 DEL to HAN 09:40 - 15:10 | 18000</code> becomes a flight strip
+             between the day's activities.</p>
           <p><b>Children:</b> mention <code>2 children</code> or <code>2 kids</code> anywhere in the
              opening lines and it appears as its own stat, and counts toward cost per person.</p>
+          <p><b>Nothing is lost:</b> lines the reader can't place are kept under <b>Good to know</b>, ready to edit.</p>
           <p><b>Terms:</b> start a line with <code>Terms</code> or <code>Cancellation Policy</code> and list beneath it.</p>
           <p><b>Trip summary:</b> every entry is sorted into Morning, Afternoon or Evening automatically —
              from words like "evening" or a time like <code>15:30</code>. On the Trip summary page,
-             click any entry to move it to a different column.</p>
+             click any entry to move it to a different column. An empty slot reads "At leisure";
+             click it to write your own words.</p>
           <p>Every card gets a photo slot. Click it, or drag an image straight onto it.</p>
         </details>
       </div>
@@ -217,7 +258,7 @@ Check in at Wildflower Hall
               <span>Destination <em>trip title</em></span>
               <input type="text" id="f-title" placeholder="Vietnam">
             </label>
-            <label class="field">
+            <label class="field setup-hide">
               <span>Accent word <em>shown in gold</em></span>
               <input type="text" id="f-titleAccent" placeholder="Escape.">
             </label>
@@ -230,8 +271,8 @@ Check in at Wildflower Hall
               <input type="text" id="f-dates" placeholder="Nov 22–29">
             </label>
             <label class="field">
-              <span>Duration</span>
-              <input type="text" id="f-duration" placeholder="8D / 7N">
+              <span>Duration <em>up to 13 nights</em></span>
+              <select id="f-duration"><!-- options added by app.js --></select>
             </label>
             <label class="field">
               <span>Travelers</span>
@@ -260,24 +301,34 @@ Check in at Wildflower Hall
           </div>
 
           <div class="theme-picker setup-hide">
-            <span class="theme-label">Colour accent</span>
-            <div class="swatches" id="themeSwatches">
-              <button type="button" class="swatch swatch--auto active" data-theme="">Auto</button>
-              <button type="button" class="swatch swatch--mint" data-theme="mint" title="Mint"></button>
-              <button type="button" class="swatch swatch--chai" data-theme="chai" title="Chai"></button>
-              <button type="button" class="swatch swatch--lantern" data-theme="lantern" title="Lantern"></button>
+            <span class="theme-label">Cover colour</span>
+            <div class="swatches" id="coverSwatches">
+              <button type="button" class="swatch swatch--auto active" data-cover="">Auto</button>
+              <button type="button" class="swatch swatch--abyss" data-cover="abyss" title="Abyss"></button>
+              <button type="button" class="swatch swatch--mint" data-cover="mint" title="Mint"></button>
+              <button type="button" class="swatch swatch--canopy" data-cover="canopy" title="Deep Canopy"></button>
+              <button type="button" class="swatch swatch--lantern" data-cover="lantern" title="Lantern"></button>
+              <button type="button" class="swatch swatch--chai" data-cover="chai" title="Chai"></button>
+              <button type="button" class="swatch swatch--paper" data-cover="paper" title="Paper"></button>
             </div>
           </div>
-          <p class="group-hint theme-hint setup-hide">Auto gives each trip its own accent from the brand palette. Pick one to lock it.</p>
-          <input type="hidden" id="f-theme" value="">
+          <p class="group-hint theme-hint setup-hide" id="coverHint">Auto gives each new itinerary the next brand colour in turn. Pick one to lock it.</p>
+          <input type="hidden" id="f-cover" value="">
         </div>
       </div>
 
       <!-- ── Itinerary ── -->
       <div class="build-section" data-section="itinerary">
         <div class="itin-intro">
+          <h2 class="group-title">Stays</h2>
+          <p class="group-hint">Hotels shown on the overview page. Prices here are for your quotation only; the customer sees the package total.</p>
+        </div>
+        <div class="itin-stays" id="itinStays"></div>
+        <button type="button" class="itin-add-btn itin-add-stay" id="btnAddStay">+ Add stay</button>
+
+        <div class="itin-intro itin-intro--days">
           <h2 class="group-title">Itinerary</h2>
-          <p class="group-hint">Click a day to jump to it in the preview, or an activity to edit it.</p>
+          <p class="group-hint">Click a day number to jump to it in the preview. Every activity can be edited, replaced or removed.</p>
         </div>
 
         <div class="itin-days" id="itinDays"></div>
@@ -293,6 +344,14 @@ Check in at Wildflower Hall
             Search the agency's rates — type <b>pickup</b> and every pickup shows with its prices.
             Click a price to add it to the selected day.
           </p>
+
+          <div class="lib-replace" id="libReplace" hidden>
+            <span>Replacing <b id="libReplaceName"></b>. Click a price below to swap it in, or
+              <button type="button" class="btn-link" id="btnReplaceCustom">use a custom item</button>.</span>
+            <button type="button" class="btn-quiet btn-xs" id="btnReplaceCancel">Cancel</button>
+          </div>
+
+          <button type="button" class="btn-outline btn-sm lib-custom-btn" id="btnCustomItem">+ Add a custom item <em>not on the cost sheet</em></button>
 
           <div class="lib-dest-row" id="libDestRow" hidden></div>
           <div class="lib-city-row" id="libCityRow" hidden></div>
@@ -362,8 +421,8 @@ Check in at Wildflower Hall
         <div class="field-group">
           <h2 class="group-title">Quotation</h2>
           <p class="group-hint">
-            The customer sees this total on their PDF. Your margin stays on this screen
-            and only prints if you tick the box inside Advanced.
+            The customer's PDF shows only the package price, taxes and total. Item costs,
+            day totals and your margin stay on this screen and never print.
           </p>
 
           <dl class="quo-summary" id="quoSummary">
@@ -385,22 +444,27 @@ Check in at Wildflower Hall
             </label>
           </div>
 
+          <label class="check">
+            <input type="checkbox" id="c-gstInclusive">
+            <span>Prices already include GST <em>turns on by itself when the text says "incl. GST"</em></span>
+          </label>
+
+          <label class="field quo-package-field">
+            <span>Final package price <em>₹, optional — when the customer was quoted a fixed price, it replaces the sum of the items</em></span>
+            <input type="number" id="c-packagePrice" min="0" step="500" placeholder="Leave blank to add up the items">
+          </label>
+
           <details class="quo-advanced">
             <summary>Advanced — margin &amp; internal breakdown</summary>
 
             <label class="field quo-margin-field">
-              <span>Margin <em>₹ — internal only, unless shown below</em></span>
+              <span>Margin <em>₹ — internal only, never printed</em></span>
               <input type="number" id="c-margin" min="0" step="500" placeholder="45000">
             </label>
 
             <dl class="cost-review" id="costReview">
               <div class="cost-empty">Generate an itinerary to see the full breakdown.</div>
             </dl>
-
-            <label class="check">
-              <input type="checkbox" id="c-showMargin">
-              <span>Print margin and base cost on the PDF <em>internal copy only</em></span>
-            </label>
           </details>
         </div>
       </div>
@@ -430,6 +494,16 @@ Check in at Wildflower Hall
             New itineraries start with the lists saved in Agency settings.
             <button type="button" class="btn-link" id="btnSaveListsDefault">Save these three lists as the agency default</button>
           </p>
+        </div>
+
+        <div class="field-group">
+          <h2 class="group-title">Payment page</h2>
+          <p class="group-hint" id="payHint">The QR code, UPI ID, bank details and payment terms from Agency settings, on a page of their own.</p>
+          <label class="check check--first">
+            <input type="checkbox" id="d-showPayment" checked>
+            <span>Include the payment page in this customer's files</span>
+          </label>
+          <button type="button" class="btn-link pay-settings-link" id="btnPaySettings">Edit payment details in Agency settings</button>
         </div>
 
         <div class="field-group">
@@ -478,6 +552,8 @@ Check in at Wildflower Hall
 
 <!-- floating element toolbar -->
 <div class="item-tools" id="itemTools" hidden>
+  <button data-act="edit" title="Edit this in the Days panel">Edit</button>
+  <button data-act="replace" title="Swap this for another item from the cost sheet">Replace</button>
   <button data-act="photo" title="Add or replace the photo on this card">Photo</button>
   <button data-act="up" title="Move up">↑</button>
   <button data-act="down" title="Move down">↓</button>
@@ -490,6 +566,8 @@ Check in at Wildflower Hall
   <div class="sheet-card" role="dialog" aria-modal="true" aria-labelledby="agencyTitle">
     <h2 id="agencyTitle">Agency settings</h2>
     <p class="group-hint">Filled in automatically on every new itinerary. Each itinerary can still be changed on its own.</p>
+
+    <h3 class="sheet-section">Advisor</h3>
     <div class="grid-2">
       <label class="field">
         <span>Advisor name</span>
@@ -499,6 +577,47 @@ Check in at Wildflower Hall
         <span>Advisor phone</span>
         <input type="text" id="ag-advisorPhone" placeholder="+91 88000 25030">
       </label>
+    </div>
+
+    <h3 class="sheet-section" id="agPayment">Payment</h3>
+    <p class="group-hint">Printed on the payment page of every customer file. It can be switched off for a single itinerary in its Document tab.</p>
+    <div class="grid-2">
+      <div class="field field-wide ag-qr">
+        <span>Payment QR code <em>a screenshot or photo of your UPI QR</em></span>
+        <div class="ag-qr-row">
+          <img id="ag-qrPreview" alt="" hidden>
+          <button type="button" class="btn-outline btn-sm" id="btnQrUpload">Upload QR image</button>
+          <button type="button" class="btn-link lib-remove" id="btnQrRemove" hidden>Remove</button>
+        </div>
+      </div>
+      <label class="field field-wide">
+        <span>UPI ID</span>
+        <input type="text" id="ag-upi" placeholder="ghoomgali@okicici">
+      </label>
+      <label class="field">
+        <span>Account name</span>
+        <input type="text" id="ag-accName" placeholder="Ghoom Gali Travels Pvt Ltd">
+      </label>
+      <label class="field">
+        <span>Account number</span>
+        <input type="text" id="ag-accNo" placeholder="50200012345678">
+      </label>
+      <label class="field">
+        <span>IFSC</span>
+        <input type="text" id="ag-ifsc" placeholder="HDFC0001234">
+      </label>
+      <label class="field">
+        <span>Bank &amp; branch</span>
+        <input type="text" id="ag-bank" placeholder="HDFC Bank, Connaught Place">
+      </label>
+      <label class="field field-wide">
+        <span>Payment terms <em>one per line</em></span>
+        <textarea id="ag-payTerms" rows="3" placeholder="50% advance to confirm the booking&#10;Balance 15 days before travel"></textarea>
+      </label>
+    </div>
+
+    <h3 class="sheet-section">Default lists &amp; terms</h3>
+    <div class="grid-2">
       <label class="field field-wide">
         <span>Inclusions <em>one per line</em></span>
         <textarea id="ag-inclusions" rows="4" placeholder="Daily breakfast&#10;All transfers in a private vehicle"></textarea>
@@ -519,7 +638,99 @@ Check in at Wildflower Hall
   </div>
 </div>
 
-<div class="toast" id="toast" hidden></div>
+<!-- Custom item: anything not on the cost sheet, with its own price. -->
+<div class="sheet" id="customSheet" hidden>
+  <div class="sheet-card" role="dialog" aria-modal="true" aria-labelledby="customTitle">
+    <h2 id="customTitle">Add a custom item</h2>
+    <p class="group-hint">For anything not on the cost sheet. The price is for your quotation only; the customer sees just the package total.</p>
+    <div class="grid-2">
+      <label class="field">
+        <span>Type</span>
+        <select id="ci-type">
+          <option value="activity">Activity or tour</option>
+          <option value="transfer">Transfer</option>
+          <option value="hotel">Hotel or stay</option>
+          <option value="flight">Flight</option>
+          <option value="visa">Visa</option>
+          <option value="other">Other</option>
+        </select>
+      </label>
+      <label class="field" data-ci="activity transfer flight visa other">
+        <span>Day</span>
+        <select id="ci-day"></select>
+      </label>
+      <label class="field field-wide" data-ci="activity transfer hotel visa other">
+        <span id="ci-nameLabel">Name</span>
+        <input type="text" id="ci-name" placeholder="Sunset dinner cruise" autocomplete="off">
+      </label>
+      <label class="field" data-ci="flight">
+        <span>Airline</span>
+        <input type="text" id="ci-airline" placeholder="IndiGo" autocomplete="off">
+      </label>
+      <label class="field" data-ci="flight">
+        <span>Flight number</span>
+        <input type="text" id="ci-flightNo" placeholder="6E-2043" autocomplete="off">
+      </label>
+      <label class="field" data-ci="hotel">
+        <span>City</span>
+        <input type="text" id="ci-city" placeholder="Hanoi" autocomplete="off">
+      </label>
+      <label class="field" data-ci="hotel">
+        <span>Dates</span>
+        <input type="text" id="ci-dates" placeholder="Nov 22 – 24" autocomplete="off">
+      </label>
+      <label class="field" data-ci="activity transfer flight other">
+        <span>From <em>optional</em></span>
+        <input type="text" id="ci-from" placeholder="Hanoi" autocomplete="off">
+      </label>
+      <label class="field" data-ci="activity transfer flight other">
+        <span>To <em>optional</em></span>
+        <input type="text" id="ci-to" placeholder="Halong Bay" autocomplete="off">
+      </label>
+      <label class="field" data-ci="flight">
+        <span>Departs</span>
+        <input type="text" id="ci-depart" placeholder="09:40" autocomplete="off">
+      </label>
+      <label class="field" data-ci="flight">
+        <span>Arrives</span>
+        <input type="text" id="ci-arrive" placeholder="15:10" autocomplete="off">
+      </label>
+      <label class="field">
+        <span>Price <em>₹</em></span>
+        <input type="number" id="ci-price" min="0" step="100" placeholder="0">
+      </label>
+      <label class="field">
+        <span>Price is</span>
+        <select id="ci-basis">
+          <option value="group">For the whole group</option>
+          <option value="person">Per person (× all travelers)</option>
+          <option value="adult">Per adult</option>
+          <option value="child">Per child</option>
+        </select>
+      </label>
+      <label class="field field-wide" data-ci="activity transfer hotel visa other">
+        <span>Description <em>optional, printed for the customer</em></span>
+        <textarea id="ci-detail" rows="2" placeholder="A sentence about it"></textarea>
+      </label>
+    </div>
+    <p class="ci-total" id="ci-total"></p>
+    <div class="sheet-foot">
+      <button type="button" class="btn-quiet" id="btnCustomCancel">Cancel</button>
+      <button type="button" class="btn-primary btn-sm" id="btnCustomAdd">Add</button>
+    </div>
+  </div>
+</div>
+
+<!-- A question with two or three answers, e.g. more days than the duration. -->
+<div class="sheet" id="choiceSheet" hidden>
+  <div class="sheet-card sheet-card--small" role="alertdialog" aria-modal="true" aria-labelledby="choiceTitle" aria-describedby="choiceMsg">
+    <h2 id="choiceTitle"></h2>
+    <p class="group-hint" id="choiceMsg"></p>
+    <div class="sheet-foot choice-btns" id="choiceBtns"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden><span id="toastText"></span><button type="button" class="toast-action" id="toastAction" hidden></button></div>
 
 <div class="overlay" id="overlay" hidden>
   <div class="overlay-card">
@@ -530,7 +741,7 @@ Check in at Wildflower Hall
 </div>
 
 <input type="file" id="filePhoto" accept="image/*" hidden>
-<input type="file" id="fileProject" accept=".ggi,application/json" hidden>
+<input type="file" id="fileQr" accept="image/*" hidden>
 
 <script src="vendor/html2canvas.min.js"></script>
 <script src="vendor/jspdf.umd.min.js"></script>
@@ -541,6 +752,7 @@ Check in at Wildflower Hall
 <script src="render.js"></script>
 <script src="export.js"></script>
 <script src="library.js"></script>
+<script src="samples.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

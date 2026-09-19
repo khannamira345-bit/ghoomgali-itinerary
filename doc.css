@@ -1,7 +1,7 @@
 /* ==========================================================================
    Ghoom Gali itinerary document - v2
    A4 pages, 794 x 1123px at 96dpi. Card-based layout, two days to a page,
-   per-entry pricing and a photo slot on every card.
+   costs kept out of the page (the customer sees one package price) and a photo slot on every card.
    Palette section 01, typography section 09 of the brand guidelines.
    This file is inlined into the .html export, so keep it self-contained.
    ========================================================================== */
@@ -104,6 +104,34 @@
   color:rgba(238,233,227,.5); margin-top:8px;
 }
 
+/* Cover colours. Each itinerary's cover takes one brand colour in turn
+   (Abyss is the base above). Dark covers keep the light type; light covers
+   switch every line of type to Abyss so it stays readable. */
+.page--cover-canopy{background:var(--canopy)}
+.page--cover-canopy .cover-veil{background:rgba(28,58,50,.76)}
+
+.page--cover-mint{background:var(--mint)}
+.page--cover-chai{background:var(--chai)}
+.page--cover-lantern{background:var(--lantern)}
+.page--cover-paper{background:var(--paper)}
+.page--cover-mint .cover-veil{background:rgba(65,191,143,.86)}
+.page--cover-chai .cover-veil{background:rgba(196,133,90,.86)}
+.page--cover-lantern .cover-veil{background:rgba(231,197,71,.86)}
+.page--cover-paper .cover-veil{background:rgba(238,233,227,.86)}
+
+.page--cover:not(.page--dark) .cover-title{color:var(--abyss)}
+.page--cover:not(.page--dark) .cover-title em{color:var(--canopy)}
+.page--cover:not(.page--dark) .cover-sub{color:rgba(12,32,39,.74)}
+.page--cover:not(.page--dark) .cover-stats .v{color:var(--abyss)}
+.page--cover:not(.page--dark) .cover-stats .k{color:rgba(12,32,39,.62)}
+.page--cover:not(.page--dark) .cover-arc{border-color:rgba(12,32,39,.16)}
+.page--cover:not(.page--dark) .cover-arc.a2{border-color:rgba(12,32,39,.09)}
+.page--cover:not(.page--dark) .page-head{border-bottom-color:rgba(12,32,39,.18)}
+.page--cover:not(.page--dark) .page-head-label .l1{color:var(--abyss)}
+.page--cover:not(.page--dark) .page-head-label .l2{color:rgba(12,32,39,.62)}
+.page--cover:not(.page--dark) .page-foot{border-top-color:rgba(12,32,39,.16); color:rgba(12,32,39,.55)}
+.page--cover:not(.page--dark) .photo-slot{border-color:rgba(12,32,39,.3); color:rgba(12,32,39,.55)}
+
 /* ── Section headings ──────────────────────────────────────────────── */
 .sec-title{
   font-family:var(--d); font-weight:400; font-size:34px; line-height:1.12;
@@ -185,9 +213,65 @@
   content:""; position:absolute; left:0; top:7px;
   width:4px; height:4px; background:var(--chai); border-radius:1px;
 }
-.card-note{
-  font-family:var(--m); font-size:9px; letter-spacing:.03em; color:rgba(12,32,39,.42);
-  margin:10px 0 0;
+.card-route{
+  display:flex; align-items:baseline; flex-wrap:wrap; gap:7px; margin:7px 0 0;
+  font-family:var(--m); font-size:9.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--canopy);
+}
+.card-route-arrow{color:var(--chai)}
+
+/* ── Flight strip ──────────────────────────────────────────────────── */
+.flight{
+  position:relative; margin-bottom:13px; padding:15px 20px 16px;
+  background:var(--abyss); color:var(--paper); border-radius:10px;
+}
+.flight-top{display:flex; align-items:center; gap:11px; margin-bottom:13px}
+.flight-icon{
+  flex:none; width:28px; height:28px; border-radius:50%; background:rgba(65,191,143,.16);
+  display:grid; place-items:center;
+}
+.flight-icon svg{width:15px; height:15px; fill:var(--mint); transform:rotate(90deg)}
+.flight-who{display:flex; align-items:baseline; gap:9px; flex-wrap:wrap; min-width:0; flex:1}
+.flight-k{font-family:var(--m); font-size:8.5px; letter-spacing:.2em; text-transform:uppercase; color:var(--mint)}
+.flight-airline{font-family:var(--d); font-size:17px; line-height:1.2}
+.flight-no{font-family:var(--m); font-size:10px; letter-spacing:.08em; color:rgba(238,233,227,.66)}
+.flight-eyebrow{
+  flex:none; font-family:var(--m); font-size:8.5px; letter-spacing:.14em; text-transform:uppercase;
+  color:rgba(238,233,227,.55);
+}
+.flight-route{display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:16px}
+.flight-end{min-width:96px}
+.flight-end--to{text-align:right}
+.flight-place{font-family:var(--d); font-size:21px; line-height:1.15; color:var(--paper)}
+.flight-time{font-family:var(--m); font-size:10.5px; letter-spacing:.06em; color:var(--lantern); margin-top:4px}
+.flight-path{position:relative; height:16px; border-top:1.5px dashed rgba(238,233,227,.34); margin-top:15px}
+.flight-plane{
+  position:absolute; left:calc(50% - 9px); top:-10px; width:18px; height:18px;
+  animation:flight-glide 5s ease-in-out infinite;
+}
+.flight-plane svg{width:18px; height:18px; fill:var(--mint); transform:rotate(90deg); display:block}
+@keyframes flight-glide{
+  0%{left:0; opacity:0} 12%{opacity:1} 88%{opacity:1} 100%{left:calc(100% - 18px); opacity:0}
+}
+.doc.exporting .flight-plane{animation:none; left:calc(50% - 9px); opacity:1}
+@media (prefers-reduced-motion:reduce){ .flight-plane{animation:none} }
+.flight-detail{font-size:11.5px; line-height:1.5; color:rgba(238,233,227,.7); margin:12px 0 0}
+.doc:not(.exporting) .flight [contenteditable]:empty::before{color:rgba(238,233,227,.35)}
+
+/* ── Payment page ──────────────────────────────────────────────────── */
+.pay{display:grid; grid-template-columns:230px 1fr; gap:22px; align-items:start; margin-bottom:26px}
+.pay--single{grid-template-columns:1fr}
+.pay-k{
+  font-family:var(--m); font-size:8.5px; letter-spacing:.18em; text-transform:uppercase;
+  color:var(--chai); margin-bottom:10px;
+}
+.pay-upi{background:#fff; border:1px solid var(--line); border-radius:12px; padding:18px; text-align:center}
+.pay-upi .pay-k{margin:12px 0 4px}
+.pay-qr{width:176px; height:176px; object-fit:contain; display:block; margin:0 auto}
+.pay-upi-id{font-family:var(--m); font-size:12px; font-weight:700; letter-spacing:.02em; color:var(--abyss); word-break:break-all}
+.pay-bank .kv{margin-bottom:0; background:#fff}
+.grand-note{
+  font-family:var(--m); font-size:9px; letter-spacing:.16em; text-transform:uppercase;
+  color:rgba(238,233,227,.6); margin-top:9px;
 }
 .badge{
   display:inline-block; font-family:var(--m); font-size:8.5px; letter-spacing:.1em;
@@ -410,6 +494,8 @@
   content:attr(data-placeholder); color:rgba(12,32,39,.3); font-style:italic;
 }
 .doc:not(.exporting) .page--dark [contenteditable]:empty::before{color:rgba(238,233,227,.35)}
+/* The slot's bullet dot is its ::before too - make room for the placeholder. */
+.doc:not(.exporting) .sum-free:empty::before{position:static; width:auto; height:auto; background:none; border-radius:0}
 .doc:not(.exporting) .card:hover{border-color:rgba(65,191,143,.5)}
 
 .photo-slot{
@@ -436,6 +522,9 @@
 .doc.exporting .card-meta:empty,
 .doc.exporting .card-eyebrow:empty,
 .doc.exporting .card-note:empty,
+.doc.exporting .card-route.is-empty,
+.doc.exporting .sum-free:empty,
+.doc.exporting .flight-detail:empty,
 .doc.exporting .cover-sub:empty,
 .doc.exporting .sec-lede:empty,
 .doc.exporting .closing-note:empty,

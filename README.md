@@ -61,32 +61,80 @@ customers. The customer only ever sees the exported PDF or Word file.
 computer: customer, travel dates, travelers, quotation total and when it was
 last edited. Search it, open one to keep working, or use the ••• menu to
 duplicate it for another customer (everything is copied except the name),
-download it as a `.ggi` file, or delete it. Itineraries are stored in the
-browser's IndexedDB, so they survive closing the tab but stay on this one
-computer. Download a `.ggi` to move one to another machine, then use
-**Open a file…**.
+download its PDF, or delete it. Itineraries are stored in the browser's
+IndexedDB, so they survive closing the tab but stay on this one computer.
 
-**Agency settings.** Advisor name and phone, and the standard inclusions,
-exclusions and terms. Saved once and filled into every new itinerary. The
-Document tab can also save the current lists as the new default.
+**Agency settings.** Advisor name and phone; payment details (UPI QR image,
+UPI ID, bank account, payment terms); and the standard inclusions, exclusions
+and terms. Saved once and used on every itinerary. The Document tab can also
+save the current lists as the new default.
 
-**New itinerary.** One full-window page: the customer and trip basics on the
-left, the pasted WhatsApp or email chat on the right. **Create itinerary**
-lays it out; **Start with a blank itinerary** skips the chat and builds from
-the cost sheet instead.
+**New itinerary** takes two steps, a page each:
+
+1. **Who is this trip for?** Customer, destination, travel dates, duration
+   (a list from 1 night / 2 days to 13 nights / 14 days), travelers, children.
+2. **How do you want to build it?**
+   - **A · Paste text or upload a PDF.** Paste the plan, or upload its PDF (the
+     text is read in the browser and put in the box to check), or try one of
+     the samples. **Create itinerary** lays it out.
+   - **B · Build it day by day.** Day 1 to the last day are created from the
+     duration, ready to fill from the cost sheet or with custom items.
+
+**Trip length.** An itinerary never has more days than its duration. If
+pasted text has more days, the app asks: keep the first days, or lengthen
+the duration. Shortening the duration below the days already built asks
+before removing any.
 
 **The workspace** is two tabs beside a live preview:
 
-- **1 · Itinerary.** Paste chat (rebuild from a new paste), Days (edit, reorder,
-  add activities), Trip details, and Document (inclusions, exclusions, terms).
+- **1 · Itinerary.** Paste chat (rebuild from a new paste), Days (stays and
+  days; every item has Edit, Replace and Remove in view, and removing offers
+  Undo), Trip details, and Document (inclusions, exclusions, terms, payment
+  page on or off).
 - **2 · Quotation.** Cost sheet (pick a country, search: type `pickup` to see
-  every pickup with its prices, click a price to add it to a day) and Pricing
-  (layout, GST, TCS, discount, and margin kept internal unless printed).
+  every pickup with its prices, click a price to add it to a day; or add a
+  custom item that isn't on the sheet) and Pricing (layout, GST, TCS,
+  discount, a fixed package price, "prices already include GST", and the
+  internal margin).
+
+**Replacing an item.** Replace on any activity or stay opens the cost sheet
+with a banner; the next price clicked (or a custom item) takes its place in
+the same day and position.
+
+**Flights.** Add one from a day's **+ Add to this day** menu, or write
+`Flight 6E-2043 DEL to HAN 09:40 - 15:10 | 18000` in the text. It prints as
+its own strip between the day's activities; the plane glides along the route
+in the app and stands still in the PDF.
+
+**Samples.** Four built-in trips, each written a different way, are under
+**Try a sample**. **Save this text as a sample** adds the agency's own, kept
+in this browser.
+
+**Nothing is lost.** Lines the text reader can't place land under Good to
+know, where they can be edited or deleted.
+
+### What the customer sees
+
+The PDF, Word and web-page exports are for the customer, so they carry one
+package price only: item prices, the cost working behind them, day totals,
+hotel prices and the margin never print. The agency sees all of those in the
+app (the Days panel and Quotation tab).
+
+**GST.** When the text says a price is "incl. GST" (or the **Prices already
+include GST** box is ticked), GST is not added on top: the total stays as
+quoted and the pricing page says "Inclusive of GST". A line such as
+`Total | 72,000 incl. GST` sets the package price the customer pays.
+
+**Cover colour.** Each new itinerary's cover takes the next brand colour in
+turn (Abyss, Mint, Deep Canopy, Lantern, Chai, Paper), with dark or light type
+to suit. Trip details › Cover colour locks one for a single itinerary.
 
 **Live preview.** Real A4 pages: cover, trip overview with the
 accommodation list, day-by-day cards two days to a page, optional notes, and a
 cost summary. Click any text to edit it in place. Hover a card for its
-toolbar: add a photo, reorder, add a bullet, or remove it.
+toolbar: edit it in the Days panel, replace it, add a photo, reorder, add a
+bullet, or remove it. An empty Morning, Afternoon or Evening slot on the Trip
+summary reads "At leisure"; click it to write something else.
 
 **Photos.** Every activity card and hotel card carries a photo slot, the cover
 takes a full-bleed image, and each day can take a wide banner via the
@@ -163,18 +211,18 @@ TCS | 2%
 |---|---|
 | `Day N \| date · place \| title` | a day heading |
 | `[...]` | the small label above the next card |
-| `title \| 2100` | a card title with its price pill |
+| `title \| 2100` | a card title and its cost (kept in the app, never printed) |
 | plain line | the card's description |
 | `- ...` | a bullet |
-| `= ...` | the small grey cost-basis note |
+| `= ...` | the cost working, e.g. `INR 2,318 × 5 adults` (kept in the app) |
 
 A `Breakfast included` bullet under a hotel is promoted to a pill
 automatically. Timing lines like `Full day`, `On arrival` or `15:30 – 21:00`
 are recognised as labels even without the brackets.
 
 **Every total is computed for you** — day totals from the card prices, then
-base cost, subtotal, GST, TCS, grand total and cost per person. Type a price
-in the preview and the totals re-settle when you click away.
+base cost, subtotal, GST, TCS, grand total and cost per person. Change a cost
+in the Days panel and the totals re-settle when you leave the field.
 
 Nothing the parser decides is final — every value is editable in the preview.
 
@@ -187,7 +235,6 @@ Nothing the parser decides is final — every value is editable in the preview.
 | **PDF** | Print-ready A4, ~240dpi, page for page identical to the preview. |
 | **DOCX** | A real Word file. Text and images editable in Word or Google Docs. |
 | **HTML** | Self-contained page, still click-to-edit, prints to a fresh PDF. |
-| **GGI** | The project file. Load it back to duplicate a trip for the next client. |
 
 The PDF is a raster of each page, which is what keeps the layout, fonts and
 colours exactly as designed; text in it is not selectable. The DOCX is the
@@ -233,10 +280,11 @@ doc.css       the itinerary document; also inlined into the HTML export
 brand.js      palette, type and logo constants
 parser.js     raw text to model
 render.js     model to paginated A4 pages
-export.js     PDF, DOCX, HTML, GGI
+export.js     PDF, DOCX, HTML
 library.js    reads the agency's Excel cost sheets, stores them in the browser
+samples.js    the built-in sample plans
 app.js        itineraries list, state, editing, photos, autosave
-vendor/       jsPDF, html2canvas, JSZip (pinned, offline)
+vendor/       jsPDF, html2canvas, JSZip, SheetJS, pdf.js 3.11 (pinned, offline)
 assets/       logos and fonts
 ```
 

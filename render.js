@@ -68,10 +68,28 @@
     return ul;
   }
 
+  /* ---- cover colours -----------------------------------------------------
+     Each itinerary's cover takes one brand colour (app.js hands them out in
+     turn). Dark covers carry light type, light covers carry Abyss type. */
+
+  var COVERS = {
+    abyss:   { dark: true },
+    canopy:  { dark: true },
+    mint:    { dark: false },
+    chai:    { dark: false },
+    lantern: { dark: false },
+    paper:   { dark: false }
+  };
+
+  function coverKey(model) {
+    return COVERS[model.meta.cover] ? model.meta.cover : 'abyss';
+  }
+
   /* ---- page scaffolding ------------------------------------------------- */
 
   function newPage(model, opts) {
-    var page = el('div', 'page' + (opts.dark ? ' page--dark' : ''));
+    var page = el('div', 'page' + (opts.dark ? ' page--dark' : '') +
+      (opts.cover ? ' page--cover page--cover-' + opts.cover : ''));
 
     if (!opts.bare) {
       var head = el('div', 'page-head');
@@ -93,8 +111,8 @@
     var foot = el('div', 'page-foot');
     var title = [model.meta.title, model.meta.titleAccent]
       .filter(Boolean).join(' ').replace(/[.]+$/, '') || 'Itinerary';
-    foot.appendChild(el('span', null, opts.dark ? window.GG.tagline : 'Ghoom Gali · ' + title));
-    foot.appendChild(el('span', 'mid', opts.dark ? '' : window.GG.tagline));
+    foot.appendChild(el('span', null, opts.cover ? window.GG.tagline : 'Ghoom Gali · ' + title));
+    foot.appendChild(el('span', 'mid', opts.cover ? '' : window.GG.tagline));
     foot.appendChild(el('span', 'page-no'));
     page.appendChild(foot);
 
@@ -105,8 +123,11 @@
 
   function coverPage(model) {
     var m = model.meta;
+    var key = coverKey(model);
+    var dark = COVERS[key].dark;
     var page = newPage(model, {
-      dark: true,
+      dark: dark,
+      cover: key,
       l1: 'Travel Itinerary',
       l2: m.preparedOn ? 'Prepared ' + m.preparedOn : ''
     });
@@ -122,7 +143,7 @@
     page.appendChild(el('div', 'cover-arc a2'));
 
     var inner = el('div', 'cover-inner');
-    inner.appendChild(img(L.lockupWhite, 'cover-logo'));
+    inner.appendChild(img(dark ? L.lockupWhite : L.lockupAbyss, 'cover-logo'));
 
     var h1 = el('h1', 'cover-title');
     h1.appendChild(edit('span', null, m.title, 'meta.title', 'Trip title'));
@@ -205,11 +226,16 @@
     return strip;
   }
 
+  /* Prices never appear on these pages: the cost sheet and the working
+     behind each price are the agency's own. The customer sees one package
+     price on the Cost summary page; every other figure lives in the app. */
+
   function hotelCard(h, i, tones) {
     var base = 'hotels.' + i;
     var tone = 'card--' + (tones || TONES)[i % (tones || TONES).length];
     var card = el('div', 'card ' + tone + (h.image ? ' has-photo' : ''));
     card.dataset.card = base;
+    card.dataset.kind = 'hotel';
 
     var body = el('div', 'card-body');
     body.appendChild(edit('div', 'card-eyebrow', h.city, base + '.city', 'City'));
@@ -222,9 +248,6 @@
     if (h.badge) body.appendChild(el('span', 'badge', h.badge));
     card.appendChild(body);
 
-    if (h.price != null) {
-      card.appendChild(edit('div', 'card-price', P.money(h.price, 'INR'), base + '.priceText'));
-    }
     card.appendChild(photo('card-photo', h.image, base + '.image', 'Add hotel photo'));
     return card;
   }
@@ -276,38 +299,88 @@
       }
 
       d.items.forEach(function (it, j) {
-        blocks.push({ node: activityCard(it, base + '.items.' + j, tone), day: i });
+        var node = it.kind === 'flight'
+          ? flightBlock(it, base + '.items.' + j, tone)
+          : activityCard(it, base + '.items.' + j, tone);
+        blocks.push({ node: node, day: i });
       });
-
-      if (d.total != null) {
-        var total = el('div', 'day-total day-total--' + tone);
-        total.appendChild(el('div', 'k', 'Day ' + pad2(d.n || i + 1) + ' total'));
-        total.appendChild(edit('div', 'v', P.money(d.total, 'INR'), base + '.totalText'));
-        blocks.push({ node: total, day: i });
-      }
     });
 
     return blocks;
   }
 
+  /* "From → To", shown only once either end is filled in (from the Days
+     panel); both ends stay editable here too. */
+  function routeLine(it, base) {
+    if (!it.from && !it.to) return null;
+    var r = el('div', 'card-route');
+    r.appendChild(edit('span', 'card-route-from', it.from, base + '.from', 'From'));
+    r.appendChild(el('span', 'card-route-arrow', '→'));
+    r.appendChild(edit('span', 'card-route-to', it.to, base + '.to', 'To'));
+    return r;
+  }
+
   function activityCard(it, base, tone) {
     var card = el('div', 'card card--' + tone + (it.image ? ' has-photo' : ''));
     card.dataset.card = base;
+    card.dataset.kind = 'item';
 
     var body = el('div', 'card-body');
     body.appendChild(edit('div', 'card-eyebrow', it.eyebrow, base + '.eyebrow', 'Timing or note'));
     body.appendChild(edit('h4', 'card-title', it.title, base + '.title', 'What happens'));
+    var route = routeLine(it, base);
+    if (route) body.appendChild(route);
     body.appendChild(edit('p', 'card-detail', it.detail, base + '.detail', 'A sentence of description'));
 
     if (it.bullets.length) body.appendChild(bulletList(it.bullets, base + '.bullets'));
-    body.appendChild(edit('p', 'card-note', it.note, base + '.note', ''));
     card.appendChild(body);
 
-    if (it.price != null) {
-      card.appendChild(edit('div', 'card-price', P.money(it.price, 'INR'), base + '.priceText'));
-    }
     card.appendChild(photo('card-photo', it.image, base + '.image', 'Add photo'));
     return card;
+  }
+
+  /* A flight is its own strip between the day's cards: airline and number
+     above, the two airports and times either side of a dashed flight path.
+     The plane glides along the path in the app; the export is still. */
+  var PLANE_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z"/></svg>';
+
+  function flightBlock(it, base, tone) {
+    var f = el('div', 'flight flight--' + tone);
+    f.dataset.card = base;
+    f.dataset.kind = 'flight';
+
+    var top = el('div', 'flight-top');
+    var icon = el('div', 'flight-icon');
+    icon.innerHTML = PLANE_SVG;
+    top.appendChild(icon);
+    var who = el('div', 'flight-who');
+    who.appendChild(el('span', 'flight-k', 'Flight'));
+    who.appendChild(edit('span', 'flight-airline', it.airline, base + '.airline', 'Airline'));
+    who.appendChild(edit('span', 'flight-no', it.flightNo, base + '.flightNo', 'Flight no.'));
+    top.appendChild(who);
+    if (it.eyebrow) top.appendChild(edit('span', 'flight-eyebrow', it.eyebrow, base + '.eyebrow', ''));
+    f.appendChild(top);
+
+    var route = el('div', 'flight-route');
+    var a = el('div', 'flight-end');
+    a.appendChild(edit('div', 'flight-place', it.from, base + '.from', 'From'));
+    a.appendChild(edit('div', 'flight-time', it.depart, base + '.depart', 'Departs'));
+    route.appendChild(a);
+
+    var path = el('div', 'flight-path');
+    var plane = el('span', 'flight-plane');
+    plane.innerHTML = PLANE_SVG;
+    path.appendChild(plane);
+    route.appendChild(path);
+
+    var b = el('div', 'flight-end flight-end--to');
+    b.appendChild(edit('div', 'flight-place', it.to, base + '.to', 'To'));
+    b.appendChild(edit('div', 'flight-time', it.arrive, base + '.arrive', 'Arrives'));
+    route.appendChild(b);
+    f.appendChild(route);
+
+    if (it.detail) f.appendChild(edit('p', 'flight-detail', it.detail, base + '.detail', ''));
+    return f;
   }
 
   /* ---- extras ----------------------------------------------------------- */
@@ -390,7 +463,9 @@
         var li = el('li', 'sum-item');
         // The text is its own editable span so the move button beside it can
         // be clicked without landing inside - and disturbing - the caret.
-        li.appendChild(edit('span', 'sum-item-text', it.title, base + '.title', 'Entry'));
+        // A flight with no title of its own is named after its route.
+        li.appendChild(edit('span', 'sum-item-text',
+          it.kind === 'flight' ? (it.title || P.flightLabel(it)) : it.title, base + '.title', 'Entry'));
         var mv = document.createElement('button');
         mv.type = 'button';
         mv.className = 'sum-move';
@@ -400,7 +475,12 @@
         li.appendChild(mv);
         ul.appendChild(li);
       });
-      if (!ul.childNodes.length) ul.appendChild(el('li', 'sum-free', 'At leisure'));
+      // An empty slot reads "At leisure" until the agent writes something
+      // of their own there; clearing it leaves the slot blank on the PDF.
+      if (!ul.childNodes.length) {
+        var own = d.slots && d.slots[part] != null ? d.slots[part] : 'At leisure';
+        ul.appendChild(edit('li', 'sum-free', own, 'days.' + i + '.slots.' + part, 'At leisure'));
+      }
       c.appendChild(ul);
       cols.appendChild(c);
     });
@@ -526,29 +606,20 @@
     /* Two versions of the same page. The internal copy shows the full build-up
        including margin; the traveller's copy shows one package price, so the
        agency's margin is never exposed and the arithmetic still reads true. */
+    // One package price only - costs, margin and base cost never print.
     var span = model.days.length ? ' (Days 1–' + model.days.length + ')' : '';
-    if (m.showMargin) {
-      if (p.activityTotal) row(rows, 'Total activity cost' + span, p.activityTotal);
-      if (p.hotelTotal) row(rows, 'Total accommodation cost (' + model.hotels.length + ' hotels)', p.hotelTotal);
-      if (p.activityTotal && p.hotelTotal) row(rows, 'Total base cost', p.baseCost, true);
-      p.extras.forEach(function (e) { row(rows, e.label, e.amount); });
-      if (p.margin) row(rows, 'Margin', p.margin);
-      if (p.margin || p.extrasTotal) row(rows, 'Subtotal', p.subtotal, true);
-    } else {
-      row(rows, 'Total package cost' + span, p.subtotal, true);
-    }
+    row(rows, 'Total package cost' + span + (p.gstInclusive ? ', inclusive of GST' : ''), p.subtotal, true);
     blocks.push({ node: rows });
 
     // GST and TCS get their own clearly separated block rather than blending
-    // into the cost-breakdown list above.
-    if (p.gst || p.tcs) {
-      // The client copy has no "Subtotal" line, so the tax basis is named
-      // after the line that is actually on the page.
-      var basis = m.showMargin ? 'subtotal' : 'package cost';
+    // into the cost-breakdown list above. GST already inside the price is
+    // not a charge, so it is not listed as one.
+    var gstCharged = p.gst && !p.gstInclusive;
+    if (gstCharged || p.tcs) {
       blocks.push({ node: el('h3', 'sub-title', 'Taxes & charges') });
       var taxRows = el('div', 'tax-rows');
-      if (p.gst) row(taxRows, 'GST (' + p.gstPct + '% of ' + basis + ')', p.gst);
-      if (p.tcs) row(taxRows, 'TCS (' + p.tcsPct + '% of ' + basis + ')', p.tcs);
+      if (gstCharged) row(taxRows, 'GST (' + p.gstPct + '% of package cost)', p.gst);
+      if (p.tcs) row(taxRows, 'TCS (' + p.tcsPct + '% of package cost)', p.tcs);
       blocks.push({ node: taxRows });
     }
 
@@ -567,6 +638,7 @@
       grand.appendChild(el('div', 'k',
         'Grand total' + (partyLabel ? ' · for ' + partyLabel.toLowerCase() : '')));
       grand.appendChild(el('div', 'v', P.money(p.grandTotal, 'INR')));
+      if (p.gstInclusive) grand.appendChild(el('div', 'grand-note', 'Inclusive of GST'));
       blocks.push({ node: grand });
 
       if (p.perPerson) {
@@ -588,6 +660,60 @@
       node: edit('p', 'closing-note', model.meta.closing, 'meta.closing',
         'A closing line to sign off on.')
     });
+    return blocks;
+  }
+
+  /* ---- payment ------------------------------------------------------------
+     The agency's QR, UPI ID, bank account and payment terms, entered once in
+     Agency settings. Read-only here: they belong to the agency, not the trip. */
+
+  function hasPayment(pay) {
+    return !!(pay && (pay.qr || pay.upi || pay.accNo || (pay.terms && pay.terms.length)));
+  }
+
+  function paymentBlocks(model, pay) {
+    var blocks = [];
+    var head = el('div');
+    head.appendChild(el('h2', 'sec-title', 'How to pay'));
+    head.appendChild(edit('p', 'sec-lede', model.meta.paymentLede != null ? model.meta.paymentLede :
+      'Pay by UPI or bank transfer, then share the payment receipt with your travel advisor.',
+      'meta.paymentLede', 'A line on how to pay'));
+    blocks.push({ node: head, keepWithNext: true });
+
+    var hasBank = pay.accName || pay.accNo || pay.ifsc || pay.bank;
+    if (pay.qr || pay.upi || hasBank) {
+      var grid = el('div', 'pay' + (hasBank && (pay.qr || pay.upi) ? '' : ' pay--single'));
+      if (pay.qr || pay.upi) {
+        var upi = el('div', 'pay-upi');
+        if (pay.qr) upi.appendChild(img(pay.qr, 'pay-qr'));
+        upi.appendChild(el('div', 'pay-k', pay.qr ? 'Scan to pay with any UPI app' : 'Pay by UPI'));
+        if (pay.upi) upi.appendChild(el('div', 'pay-upi-id', pay.upi));
+        grid.appendChild(upi);
+      }
+      if (hasBank) {
+        var bank = el('div', 'pay-bank');
+        bank.appendChild(el('div', 'pay-k', 'Bank transfer'));
+        var kv = el('div', 'kv');
+        [['Account name', pay.accName], ['Account number', pay.accNo],
+         ['IFSC', pay.ifsc], ['Bank & branch', pay.bank]].forEach(function (r) {
+          if (!r[1]) return;
+          var row = el('div', 'kv-row');
+          row.appendChild(el('div', 'kv-k', r[0]));
+          row.appendChild(el('div', 'kv-v', r[1]));
+          kv.appendChild(row);
+        });
+        bank.appendChild(kv);
+        grid.appendChild(bank);
+      }
+      blocks.push({ node: grid });
+    }
+
+    if (pay.terms && pay.terms.length) {
+      blocks.push({ node: el('h3', 'sub-title', 'Payment terms'), keepWithNext: true });
+      var ol = el('ol', 'terms');
+      pay.terms.forEach(function (t) { ol.appendChild(el('li', null, t)); });
+      blocks.push({ node: ol });
+    }
     return blocks;
   }
 
@@ -635,7 +761,11 @@
 
   /* ---- entry point ------------------------------------------------------ */
 
-  function render(model, host) {
+  /* extras.payment: the agency's payment details (app.js reads them from
+     Agency settings), kept out of the model so each itinerary always prints
+     the current ones. */
+  function render(model, host, extras) {
+    extras = extras || {};
     host.textContent = '';
     var pages = [];
 
@@ -728,6 +858,12 @@
       }, pricingBlocks(model));
     }
 
+    if (model.meta.showPayment !== false && hasPayment(extras.payment)) {
+      flow(function () {
+        return mount(newPage(model, { l1: 'Before you book', l2: 'Payment' }));
+      }, paymentBlocks(model, extras.payment));
+    }
+
     if (model.terms && model.terms.length) {
       flow(function () {
         return mount(newPage(model, { l1: 'Before you book', l2: 'Terms & conditions' }));
@@ -743,5 +879,5 @@
     return pages;
   }
 
-  window.GGRender = { render: render, PAGE_BODY_H: PAGE_BODY_H };
+  window.GGRender = { render: render, hasPayment: hasPayment, COVERS: COVERS, PAGE_BODY_H: PAGE_BODY_H };
 })();

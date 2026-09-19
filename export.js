@@ -4,7 +4,8 @@
      PDF   print ready, page for page identical to the preview
      DOCX  a real Word file, text and images editable
      HTML  self contained, still editable, prints straight to PDF
-     GGI   the project file, reopened by this app
+   All three are for the customer: they carry the package price only, never
+   an item's cost, a day total or the margin.
    ========================================================================== */
 (function () {
   'use strict';
@@ -48,6 +49,17 @@
     }));
   }
 
+  /* A From → To line whose two ends were both cleared in the preview leaves
+     the page, arrow and all. */
+  function markEmptyRoutes(root) {
+    Array.prototype.slice.call(root.querySelectorAll('.card-route')).forEach(function (r) {
+      var filled = Array.prototype.some.call(r.querySelectorAll('[contenteditable]'), function (n) {
+        return n.textContent.trim();
+      });
+      r.classList.toggle('is-empty', !filled);
+    });
+  }
+
   /* ---- PDF -------------------------------------------------------------- */
 
   async function toPDF(docEl, model, progress) {
@@ -56,6 +68,7 @@
 
     var priorTransform = docEl.style.transform;
     docEl.style.transform = 'none';           // capture at true 1:1
+    markEmptyRoutes(docEl);
     docEl.classList.add('exporting');
 
     try {
@@ -121,6 +134,11 @@
     var clone = docEl.cloneNode(true);
     clone.classList.remove('exporting');
     clone.style.transform = '';
+    markEmptyRoutes(clone);
+    // The only moving thing in the app stays still in a file meant to print.
+    Array.prototype.slice.call(clone.querySelectorAll('.flight-plane')).forEach(function (n) {
+      n.style.animation = 'none';
+    });
     Array.prototype.slice.call(clone.querySelectorAll('.photo-slot')).forEach(function (n) {
       n.parentNode.removeChild(n);
     });
@@ -162,29 +180,6 @@ css + '\n</style>\n</head>\n<body>\n' +
   function esc(s) {
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
       .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  }
-
-  /* ---- project file ----------------------------------------------------- */
-
-  function toProject(model) {
-    var payload = { app: 'ghoomgali-itinerary', version: 1, saved: new Date().toISOString(), model: model };
-    download(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }),
-      fileName(model, 'ggi'));
-  }
-
-  function readProject(file) {
-    return new Promise(function (res, rej) {
-      var r = new FileReader();
-      r.onload = function () {
-        try {
-          var d = JSON.parse(r.result);
-          if (!d || !d.model || !Array.isArray(d.model.days)) throw new Error('bad');
-          res(d.model);
-        } catch (e) { rej(new Error('That does not look like a Ghoom Gali project file.')); }
-      };
-      r.onerror = function () { rej(new Error('Could not read that file.')); };
-      r.readAsText(file);
-    });
   }
 
   /* ---- DOCX ------------------------------------------------------------- */
@@ -285,7 +280,8 @@ css + '\n</style>\n</head>\n<body>\n' +
       '</pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>';
   }
 
-  async function toDOCX(model) {
+  async function toDOCX(model, extras) {
+    extras = extras || {};
     media = [];
     var F = window.GG.docxFonts;
     var P = window.GGParser;
@@ -336,10 +332,8 @@ css + '\n</style>\n</head>\n<body>\n' +
 
       for (i = 0; i < model.hotels.length; i++) {
         var h = model.hotels[i];
-        body.push(para([
-          run((h.city || '').toUpperCase() + '   ', { font: F.mono, size: 8, color: C.chai, spacing: 40 }),
-          run(inr(h.price), { font: F.mono, size: 9, b: true, color: C.canopy })
-        ], { before: 180, after: 50 }));
+        body.push(para(run((h.city || '').toUpperCase(), { font: F.mono, size: 8, color: C.chai, spacing: 40 }),
+          { before: 180, after: 50 }));
         body.push(para(run(h.name || '', { font: F.display, size: 15, color: C.abyss }), { after: 40 }));
         var hmeta = h.meta != null ? h.meta : [h.dates, h.nights].filter(Boolean).join(' · ');
         if (hmeta) body.push(para(run(hmeta, { size: 10, color: '6B777B' }), { after: 90 }));
@@ -368,15 +362,28 @@ css + '\n</style>\n</head>\n<body>\n' +
 
       for (j = 0; j < d.items.length; j++) {
         var it = d.items[j];
+        if (it.kind === 'flight') {
+          body.push(para(run(['FLIGHT', it.airline, it.flightNo, it.eyebrow].filter(Boolean).join('   ·   ').toUpperCase(),
+            { font: F.mono, size: 8.5, color: C.mint, spacing: 40, b: true }),
+            { before: 160, after: 50, shade: C.lightMint }));
+          body.push(para([
+            run([it.from, it.depart].filter(Boolean).join('  '), { font: F.display, size: 14, color: C.abyss }),
+            run('   ✈   ', { size: 12, color: C.mint }),
+            run([it.to, it.arrive].filter(Boolean).join('  '), { font: F.display, size: 14, color: C.abyss })
+          ], { after: it.detail ? 50 : 120 }));
+          if (it.detail) body.push(para(run(it.detail, { size: 10.5, color: '4A585D' }), { after: 120 }));
+          continue;
+        }
         if (it.eyebrow) {
           body.push(para(run(it.eyebrow.toUpperCase(),
             { font: F.mono, size: 8, color: C.chai, spacing: 40 }), { before: 160, after: 50 }));
         }
-        body.push(para([
-          run(it.title || '', { font: F.display, size: 15, color: C.abyss }),
-          run(it.price != null ? '     ' + inr(it.price) : '',
-            { font: F.mono, size: 10, b: true, color: C.canopy })
-        ], { after: it.detail ? 50 : 90 }));
+        body.push(para(run(it.title || '', { font: F.display, size: 15, color: C.abyss }),
+          { after: it.detail || it.from || it.to ? 50 : 90 }));
+        if (it.from || it.to) {
+          body.push(para(run([it.from, it.to].filter(Boolean).join('  →  ').toUpperCase(),
+            { font: F.mono, size: 8.5, color: C.canopy, spacing: 30 }), { after: 60 }));
+        }
         if (it.detail) {
           body.push(para(run(it.detail, { size: 10.5, color: '4A585D' }), { after: 80 }));
         }
@@ -384,18 +391,7 @@ css + '\n</style>\n</head>\n<body>\n' +
           body.push(para([run('•   ', { color: C.chai }), run(b, { size: 10.5, color: C.abyss })],
             { after: 50, indent: 220 }));
         });
-        if (it.note) {
-          body.push(para(run(it.note, { font: F.mono, size: 8.5, color: '8A9498' }), { after: 100, indent: 220 }));
-        }
         await picture(it.image, 9);
-      }
-
-      if (d.total != null) {
-        body.push(para([
-          run('DAY ' + (d.n < 10 ? '0' : '') + d.n + ' TOTAL      ',
-            { font: F.mono, size: 10, color: C.abyss, spacing: 40, b: true }),
-          run(inr(d.total), { font: F.mono, size: 11, b: true, color: C.canopy })
-        ], { before: 200, after: 140, shade: C.lightMint }));
       }
     }
 
@@ -443,21 +439,13 @@ css + '\n</style>\n</head>\n<body>\n' +
           run(inr(amount), { font: F.mono, size: 10.5, b: !!hi, color: hi ? C.canopy : C.abyss })
         ], { after: 70, shade: hi ? C.lightMint : null }));
       }
-      if (m.showMargin) {
-        line('Total activity cost', p.activityTotal);
-        line('Total accommodation cost', p.hotelTotal);
-        line('Total base cost', p.baseCost, true);
-        p.extras.forEach(function (e) { line(e.label, e.amount); });
-        line('Margin', p.margin);
-        line('Subtotal', p.subtotal, true);
-      } else {
-        line('Total package cost', p.subtotal, true);
-      }
+      line('Total package cost' + (p.gstInclusive ? ', inclusive of GST' : ''), p.subtotal, true);
 
-      if (p.gst || p.tcs) {
+      var gstCharged = p.gst && !p.gstInclusive;
+      if (gstCharged || p.tcs) {
         body.push(para(run('TAXES & CHARGES', { font: F.mono, size: 8.5, color: C.chai, spacing: 50 }),
           { before: 180, after: 70 }));
-        if (p.gst) line('GST (' + p.gstPct + '%)', p.gst);
+        if (gstCharged) line('GST (' + p.gstPct + '%)', p.gst);
         if (p.tcs) line('TCS (' + p.tcsPct + '%)', p.tcs);
       }
 
@@ -471,10 +459,45 @@ css + '\n</style>\n</head>\n<body>\n' +
       var partyLabelTxt = [m.party, m.children].filter(Boolean).join(' · ');
       body.push(para(run('GRAND TOTAL' + (partyLabelTxt ? '  ·  FOR ' + partyLabelTxt.toUpperCase() : ''),
         { font: F.mono, size: 9, color: C.canopy, spacing: 60 }), { before: 260, after: 70 }));
-      body.push(para(run(inr(p.grandTotal), { font: F.display, size: 26, color: C.abyss }), { after: 120 }));
+      body.push(para(run(inr(p.grandTotal), { font: F.display, size: 26, color: C.abyss }),
+        { after: p.gstInclusive ? 40 : 120 }));
+      if (p.gstInclusive) {
+        body.push(para(run('INCLUSIVE OF GST', { font: F.mono, size: 8.5, color: C.canopy, spacing: 50 }), { after: 120 }));
+      }
       if (p.perPerson) {
         body.push(para(run('Cost per person (÷ ' + p.heads + ')   ' + inr(p.perPerson),
           { font: F.mono, size: 10, color: C.chai }), { after: 200 }));
+      }
+    }
+
+    /* ---- payment ---- */
+    var pay = extras.payment;
+    if (m.showPayment !== false && window.GGRender.hasPayment(pay)) {
+      body.push(pageBreak());
+      body.push(para(run('BEFORE YOU BOOK', { font: F.mono, size: 9, color: C.chai, spacing: 60 }), { after: 60 }));
+      body.push(para(run('How to pay', { font: F.display, size: 22, color: C.abyss }),
+        { after: 160, border: C.mint }));
+      var lede = m.paymentLede != null ? m.paymentLede :
+        'Pay by UPI or bank transfer, then share the payment receipt with your travel advisor.';
+      if (lede) body.push(para(run(lede, { size: 10.5, color: '4A585D' }), { after: 200 }));
+      if (pay.qr) await picture(pay.qr, 4.5);
+      if (pay.upi) {
+        body.push(para([run('UPI ID   ', { font: F.mono, size: 8.5, color: C.chai, spacing: 40 }),
+                        run(pay.upi, { font: F.mono, size: 11, b: true, color: C.abyss })], { after: 160 }));
+      }
+      [['Account name', pay.accName], ['Account number', pay.accNo],
+       ['IFSC', pay.ifsc], ['Bank & branch', pay.bank]].forEach(function (r) {
+        if (!r[1]) return;
+        body.push(para([run(r[0].toUpperCase() + '   ', { font: F.mono, size: 8.5, color: C.chai, spacing: 40 }),
+                        run(r[1], { size: 11, color: C.abyss, b: true })], { after: 70 }));
+      });
+      if (pay.terms && pay.terms.length) {
+        body.push(para(run('PAYMENT TERMS', { font: F.mono, size: 9, color: C.chai, spacing: 50 }),
+          { before: 220, after: 90 }));
+        pay.terms.forEach(function (t, ti) {
+          body.push(para([run((ti + 1) + '.   ', { font: F.mono, color: C.chai, size: 10.5 }),
+                          run(t, { size: 10.5, color: C.abyss })], { after: 80, indent: 200 }));
+        });
       }
     }
 
@@ -562,8 +585,5 @@ rels.join('') + '</Relationships>');
     download(blob, fileName(model, 'docx'));
   }
 
-  window.GGExport = {
-    pdf: toPDF, docx: toDOCX, html: toHTML,
-    project: toProject, readProject: readProject
-  };
+  window.GGExport = { pdf: toPDF, docx: toDOCX, html: toHTML };
 })();

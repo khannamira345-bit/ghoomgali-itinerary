@@ -32,8 +32,20 @@
     eyebrow: /^\s*\[(.+?)\]\s*$/,
 
     money:   /(?:₹|Rs\.?|INR|USD|\$|EUR|€)\s?([\d][\d,]*(?:\.\d{1,2})?)/i,
-    bareNum: /^\s*([\d][\d,]{2,})\s*$/,
+    // A bare amount, optionally followed by a tax remark: "72,000", "72,000/-",
+    // "72,000 incl. GST", "72000 + GST".
+    bareNum: /^\s*([\d][\d,]{2,}(?:\.\d{1,2})?)\s*(?:\/-)?\s*(?:(?:incl|inc|inclusive|including|excl|exclusive|excluding|plus|with|\+|\()[\s\S]*)?$/i,
     pct:     /(\d{1,2}(?:\.\d+)?)\s*%/,
+
+    // "incl. GST", "inclusive of GST", "including GST", "GST included"
+    gstIncl: /(?:\bincl(?:\.|usive|uding|uded)?|\binc\.?)\s*(?:of\s+)?(?:all\s+)?gst\b|\bgst\s*(?:is\s+)?incl(?:\.|usive|uded|uding)?/i,
+
+    // A stated package price: "Total: 72,000 incl. GST", "Package cost - Rs 72,000".
+    statedTotal: /^\s*(?:grand\s+)?(?:total(?:\s+(?:cost|price|package(?:\s+(?:cost|price))?))?|package(?:\s+(?:cost|price|total))?|final\s+(?:price|cost|total))\s*(?:[:|\-–—=]\s*|\s+)(.*\d.*)$/i,
+
+    // A flight line: "Flight EK-511 DEL to DXB 04:15 - 06:20", "✈ 6E 2043 ..."
+    flight:  /^\s*(?:✈️?\s*|flight\b)/i,
+    flightNo: /\b([A-Z][A-Z0-9]|[0-9][A-Z])\s?-?\s?(\d{2,4})\b/,
 
     dateAny: new RegExp('\\b(\\d{1,2}\\s*(?:st|nd|rd|th)?\\s+(?:' + MONTHS + ')\\w*(?:\\s+\\d{2,4})?|' +
                         '(?:' + MONTHS + ')\\w*\\s+\\d{1,2}(?:st|nd|rd|th)?(?:,?\\s+\\d{2,4})?|' +
@@ -44,6 +56,9 @@
                           '|\\d{1,2}[:.]\\d{2}\\s*(?:am|pm)?' +
                           '|full\\s+day|half\\s+day|on\\s+arrival|morning|afternoon|evening|overnight|' +
                           'early\\s+morning|late\\s+evening|all\\s+day)\\b', 'i'),
+
+    // a line that is only a time of day or a clock time, nothing else
+    pureTiming: /^(?:early\s+|late\s+)?(?:morning|afternoon|evening|night|overnight|full\s+day|half\s+day|all\s+day|on\s+arrival|\d{1,2}[:.]\d{2}\s*(?:am|pm)?(?:\s*[-–—]\s*\d{1,2}[:.]\d{2}\s*(?:am|pm)?)?)\s*:?$/i,
 
     // A colon or dash may be followed by trailing text ("Inclusions - what's covered");
     // that text is ignored, but its presence must not stop the heading matching.
@@ -78,6 +93,29 @@
     }
     if (/\b(?:full\s+day|all\s+day|half\s+day)\b/i.test(s)) return 'morning';
     return null;
+  }
+
+  /* ---- duration ---------------------------------------------------------
+     Always stored and printed days first ("7D / 6N"). The longest trip the
+     maker builds is 13 nights / 14 days. */
+
+  var MAX_DAYS = 14;
+
+  function parseDuration(s) {
+    s = String(s || '');
+    var m = s.match(/(\d+)\s*d\w*\s*[\/&,+]?\s*(\d+)\s*n\w*/i);
+    if (m) return { days: +m[1], nights: +m[2] };
+    m = s.match(/(\d+)\s*n\w*\s*[\/&,+]?\s*(\d+)\s*d\w*/i);
+    if (m) return { days: +m[2], nights: +m[1] };
+    m = s.match(/(\d+)\s*n(?:ights?)?\b/i);
+    if (m) return { days: +m[1] + 1, nights: +m[1] };
+    m = s.match(/(\d+)\s*d(?:ays?)?\b/i);
+    if (m) return { days: +m[1], nights: Math.max(0, +m[1] - 1) };
+    return null;
+  }
+
+  function formatDuration(days) {
+    return days + 'D / ' + Math.max(0, days - 1) + 'N';
   }
 
   var THEME_TONES = ['mint', 'chai', 'lantern'];
@@ -139,15 +177,18 @@
 
   /* ---- main ------------------------------------------------------------- */
 
-  function parse(text) {
+  /* seed: trip details the agent already entered (Step 1), which win over
+     anything the text says - and so also shape the default wording. */
+  function parse(text, seed) {
     var lines = String(text || '').replace(/\r/g, '').split('\n');
 
     var model = {
-      meta: { currency: 'INR' },
+      meta: Object.assign({ currency: 'INR' }, seed || {}),
       cover: { image: '' },
       hotels: [],
       days: [],
-      pricing: { margin: null, gstPct: null, tcsPct: null, discount: null, extras: [] },
+      pricing: { margin: null, gstPct: null, tcsPct: null, discount: null, extras: [],
+                 packagePrice: null, gstInclusive: false },
       inclusions: [],
       exclusions: [],
       terms: [],
@@ -172,6 +213,20 @@
       var isNote = RE.note.test(line);
       var body = line.replace(RE.bullet, '').replace(RE.note, '').trim();
       if (!body) return;
+
+      // A price quoted "incl. GST" anywhere means GST must not be added again.
+      if (RE.gstIncl.test(body)) model.pricing.gstInclusive = true;
+
+      /* -- a stated package price, wherever it appears -- */
+      if (!isBullet && !isNote && mode !== 'incl' && mode !== 'excl' && mode !== 'terms') {
+        var st = body.match(RE.statedTotal);
+        var stated = st && looseAmount(st[1]);
+        if (stated != null) {
+          model.pricing.packagePrice = stated;
+          closeCard();
+          return;
+        }
+      }
 
       /* -- day heading -- */
       var head = !isBullet && dayHeading(body);
@@ -231,7 +286,9 @@
 
       /* -- pricing -- */
       if (mode === 'price') {
-        applyPricing(model.pricing, body);
+        // Nothing is thrown away: a line the pricing reader can't place is
+        // kept in the notes, where the agent can see and fix it.
+        if (!applyPricing(model.pricing, body)) noteLines.push(body);
         return;
       }
 
@@ -249,13 +306,30 @@
       var dt = body.match(/^day\s*\d*\s*total\b\s*[:|-]?\s*(.+)$/i);
       if (dt) { day.total = toNumber(dt[1]); closeCard(); return; }
 
-      // a bare timing line becomes the eyebrow for the card that follows
-      if (!card && !isBullet && RE.timingish.test(body) && body.length < 70 && !RE.money.test(body)) {
+      if (!isBullet && RE.flight.test(body)) {
+        card = makeFlight(body, pendingEyebrow);
+        pendingEyebrow = '';
+        day.items.push(card);
+        return;
+      }
+
+      // a bare timing line becomes the eyebrow for the card that follows -
+      // a line that is nothing but a time ("Evening", "09:30") even straight
+      // after another card, a longer timing label only between cards
+      if (!isBullet && RE.pureTiming.test(body)) {
+        pendingEyebrow = body;
+        closeCard();
+        return;
+      }
+      if (!card && !isBullet && RE.timingish.test(body) && body.length < 70 &&
+          !RE.money.test(body) && !endsWithPrice(body)) {
         pendingEyebrow = body;
         return;
       }
 
-      if (card && !card.detail && !card.bullets.length && !isBullet) {
+      // A line ending in a price is always a new card, never the description
+      // of the one before it.
+      if (card && !card.detail && !card.bullets.length && !isBullet && !endsWithPrice(body)) {
         card.detail = body;                      // the line under a title
         return;
       }
@@ -265,12 +339,88 @@
       day.items.push(card);
     });
 
+    // Opening lines beyond the title and subtitle that carry none of the trip
+    // stats would otherwise vanish - they are kept in the notes instead.
+    model.preamble.slice(2).forEach(function (l) {
+      if (!statsLine(l)) noteLines.push(l);
+    });
+
     model.notes = noteLines.join(' ');
     finish(model);
     return model;
   }
 
+  function statsLine(l) {
+    return RE.dateAny.test(l) || parseDuration(l) ||
+      /\d+\s*(adults?|pax|people|persons?|travell?ers?|guests?|child(?:ren)?|kids?|cities|destinations?)/i.test(l);
+  }
+
+  function looseAmount(s) {
+    return toNumber(String(s || '').trim());
+  }
+
+  function endsWithPrice(s) {
+    var parts = s.split('|');
+    if (parts.length > 1 && toNumber(parts[parts.length - 1].trim()) != null) return true;
+    return new RegExp(RE.money.source + '\\s*(?:\\/-)?\\s*$', 'i').test(s);
+  }
+
   /* ---- builders --------------------------------------------------------- */
+
+  /* "Flight EK-511 DEL to DXB 04:15 - 06:20 | 32000" - the title stays empty
+     so the label follows the route; see flightLabel(). */
+  function makeFlight(text, eyebrow) {
+    var parts = splitPipes(text);
+    var price = null;
+    if (parts.length > 1) {
+      price = toNumber(parts[parts.length - 1]);
+      if (price != null) parts.pop();
+    }
+    var s = parts.join(' ').replace(RE.flight, '').trim();
+    if (price == null) {
+      var pm = s.match(RE.money);
+      if (pm) { price = toNumber(pm[0]); s = s.replace(pm[0], ' '); }
+    }
+
+    var times = [];
+    s = s.replace(/\b(\d{1,2}[:.]\d{2})\s*(am|pm)?\b/gi, function (all) {
+      times.push(all.trim());
+      return ' ';
+    });
+
+    var airline = '', flightNo = '', rest = s;
+    var fm = s.match(RE.flightNo);
+    if (fm) {
+      flightNo = fm[1] + '-' + fm[2];
+      airline = stripEdges(s.slice(0, fm.index));
+      rest = s.slice(fm.index + fm[0].length);
+    }
+    rest = rest.replace(/\b(?:dep(?:arts?|arture)?|arr(?:ives?|ival)?|from)\b\.?/gi, ' ');
+    var legs = rest.split(/\s*(?:→|->|\bto\b)\s*/i).map(stripEdges).filter(Boolean);
+
+    return {
+      kind: 'flight',
+      eyebrow: eyebrow || '',
+      title: '',
+      airline: airline,
+      flightNo: flightNo,
+      from: legs[0] || '',
+      to: legs.length > 1 ? legs[legs.length - 1] : '',
+      depart: times[0] || '',
+      arrive: times[1] || '',
+      detail: '',
+      bullets: [],
+      note: '',
+      price: price,
+      image: '',
+      part: inferPart(times[0] || eyebrow || '')
+    };
+  }
+
+  function flightLabel(it) {
+    var route = [it.from, it.to].filter(Boolean).join(' → ');
+    return 'Flight' + (route ? ' ' + route : '');
+  }
 
   function makeCard(text, eyebrow) {
     var parts = splitPipes(text);
@@ -329,13 +479,18 @@
     var label = p[0] || text;
     var value = p.length > 1 ? p.slice(1).join(' ') : text;
 
-    if (/margin/i.test(label))   { pricing.margin = toNumber(value); return; }
-    if (/discount|rebate/i.test(label)) { pricing.discount = toNumber(value); return; }
-    if (/\bgst\b/i.test(label))  { pricing.gstPct = pctOf(value); return; }
-    if (/\btcs\b/i.test(label))  { pricing.tcsPct = pctOf(value); return; }
+    if (/margin/i.test(label))   { pricing.margin = toNumber(value); return true; }
+    if (/discount|rebate/i.test(label)) { pricing.discount = toNumber(value); return true; }
+    if (/\bgst\b/i.test(label)) {
+      if (/\bincl/i.test(value)) pricing.gstInclusive = true;
+      if (pctOf(value) != null) pricing.gstPct = pctOf(value);
+      if (pctOf(value) != null || pricing.gstInclusive) return true;
+    }
+    if (/\btcs\b/i.test(label))  { pricing.tcsPct = pctOf(value); return true; }
 
     var n = toNumber(value);
-    if (n != null && p.length > 1) pricing.extras.push({ label: label, amount: n });
+    if (n != null && p.length > 1) { pricing.extras.push({ label: label, amount: n }); return true; }
+    return RE.gstIncl.test(text);    // a bare "Prices are inclusive of GST" line has done its job
   }
 
   function pctOf(s) {
@@ -381,6 +536,9 @@
     // field by hand immediately affects the per-person split below.
     var childMatch = String(model.meta.children || '').match(/\d+/);
     model.meta.childCount = childMatch ? parseInt(childMatch[0], 10) : 0;
+    // Likewise the travelers field, whether typed or read from the text.
+    var partyMatch = String(model.meta.party || '').match(/\d+/);
+    if (partyMatch) model.meta.partyCount = parseInt(partyMatch[0], 10);
 
     // Every entry lands in a third of the day. Anything the wording didn't
     // resolve inherits the entry before it, so the grid has no holes.
@@ -397,10 +555,24 @@
     p.hotelTotal = model.hotels.reduce(function (a, h) { return a + (h.price || 0); }, 0);
     p.baseCost = p.activityTotal + p.hotelTotal;
     p.extrasTotal = p.extras.reduce(function (a, e) { return a + e.amount; }, 0);
-    p.subtotal = p.baseCost + (p.margin || 0) + p.extrasTotal;
-    p.gst = p.gstPct ? p.subtotal * p.gstPct / 100 : 0;
+    // A package price quoted to the customer replaces the sum of the parts.
+    p.subtotal = p.packagePrice != null ? p.packagePrice : p.baseCost + (p.margin || 0) + p.extrasTotal;
+
+    // Inclusive: the price already contains GST, so the GST share is worked
+    // out backwards for the agency's own view and nothing is added on top.
+    if (p.gstInclusive) {
+      p.gst = p.gstPct ? p.subtotal - p.subtotal / (1 + p.gstPct / 100) : 0;
+      p.gstAdded = 0;
+    } else {
+      p.gst = p.gstPct ? p.subtotal * p.gstPct / 100 : 0;
+      p.gstAdded = p.gst;
+    }
     p.tcs = p.tcsPct ? p.subtotal * p.tcsPct / 100 : 0;
-    p.grandTotal = p.subtotal + p.gst + p.tcs - (p.discount || 0);
+    p.grandTotal = p.subtotal + p.gstAdded + p.tcs - (p.discount || 0);
+    // What the agency keeps when a fixed package price was quoted.
+    p.impliedMargin = p.packagePrice != null
+      ? p.subtotal - (p.gstInclusive ? p.gst : 0) - p.baseCost - p.extrasTotal
+      : null;
 
     var heads = (model.meta.partyCount || 0) + (model.meta.childCount || 0);
     p.heads = heads || null;
@@ -414,19 +586,24 @@
     var meta = model.meta;
     var pre = model.preamble;
 
-    if (pre.length && !meta.title) {
-      var t = pre[0].trim();
+    if (pre.length) {
+      var t = pre[0].trim(), tTitle = t, tAccent = '';
       var star = t.match(/^(.*?)\*(.+?)\*(.*)$/);      // Vietnam *Escape.*
       if (star) {
-        meta.title = (star[1] + star[3]).trim();
-        meta.titleAccent = star[2].trim();
+        tTitle = (star[1] + star[3]).trim();
+        tAccent = star[2].trim();
       } else {
         var words = t.split(/\s+/);
         if (words.length > 1) {
-          meta.titleAccent = words.pop();
-          meta.title = words.join(' ');
-        } else meta.title = t;
+          tAccent = words.pop();
+          tTitle = words.join(' ');
+        }
       }
+      // A destination typed by the agent wins; the text's accent word is
+      // only borrowed when it belongs to that same destination.
+      var sameTrip = !meta.title || meta.title.toLowerCase() === tTitle.toLowerCase();
+      if (!meta.title) meta.title = tTitle;
+      if (!meta.titleAccent && sameTrip) meta.titleAccent = tAccent;
     }
     if (pre.length > 1 && !meta.subtitle) meta.subtitle = pre[1].trim();
 
@@ -441,8 +618,8 @@
       if (one) meta.dates = one[0].trim();
     }
 
-    var dur = joined.match(/(\d+)\s*d\w*\s*[\/&]?\s*(\d+)\s*n\w*|(\d+)\s*n\w*\s*[\/&]?\s*(\d+)\s*d\w*/i);
-    if (dur && !meta.duration) meta.duration = dur[0].replace(/\s+/g, '').toUpperCase().replace(/([DN])/g, '$1 ').replace(/\s*\/\s*/, ' / ').trim();
+    var dur = parseDuration(pre.slice(0, 4).join(' | '));
+    if (dur && !meta.duration) meta.duration = formatDuration(dur.days);
 
     var pax = joined.match(/(\d+)\s*(adults?|pax|people|persons?|travell?ers?|guests?)/i);
     if (pax) {
@@ -466,9 +643,7 @@
       var c = Object.keys(set).length;
       if (c) meta.destinations = c + ' ' + (c === 1 ? 'City' : 'Cities');
     }
-    if (!meta.duration && model.days.length) {
-      meta.duration = model.days.length + 'D / ' + Math.max(0, model.days.length - 1) + 'N';
-    }
+    if (!meta.duration && model.days.length) meta.duration = formatDuration(model.days.length);
 
     // Give every itinerary its own lead accent from the brand palette, so two
     // trips don't default to the same mint-heavy look.
@@ -511,6 +686,10 @@
     toNumber: toNumber,
     autoTheme: autoTheme,
     inferPart: inferPart,
+    parseDuration: parseDuration,
+    formatDuration: formatDuration,
+    flightLabel: flightLabel,
+    MAX_DAYS: MAX_DAYS,
     THEME_TONES: THEME_TONES,
     PARTS: PARTS
   };
