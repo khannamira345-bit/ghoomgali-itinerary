@@ -164,6 +164,11 @@ body:not([data-view="trip"]) .tb-work{display:none !important}
 .topbar .btn-icon:hover{background:rgba(0,0,0,.05)}
 .topbar .btn-icon:disabled{background:transparent; opacity:.3}
 .topbar .dropdown{flex:none}
+/* The topbar scrolls sideways on phones, and overflow-x:auto clips anything
+   hanging below it - the export menu opened invisibly and swallowed the
+   click. Its backdrop-filter also traps position:fixed, so app.js moves the
+   menu to <body> and places it under the button. */
+#exportMenuTop{position:fixed; top:0; right:auto}
 
 /* Apple's secondary button: a soft grey fill, no border. */
 .btn-quiet{

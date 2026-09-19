@@ -682,11 +682,18 @@
      button per action - PDF and "Save project" are the two most reached for,
      the rest sit below a divider. */
 
+  document.body.appendChild($('exportMenuTop'));   // out of the clipping topbar - see app.css
+
   $('btnExportTop').addEventListener('click', function (e) {
     e.stopPropagation();
     closeAllPopovers();
     var menu = $('exportMenuTop');
     menu.hidden = !menu.hidden;
+    if (!menu.hidden) {
+      var r = $('btnExportTop').getBoundingClientRect();
+      menu.style.top = (r.bottom + 8) + 'px';
+      menu.style.left = Math.max(8, Math.min(r.right, window.innerWidth - 8) - menu.offsetWidth) + 'px';
+    }
     $('btnExportTop').setAttribute('aria-expanded', String(!menu.hidden));
   });
 
